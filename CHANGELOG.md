@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.0...v1.1.1) (2026-09-21)
+
+
+### Miscellaneous Chores
+
+* drop support for php 8.2 ([dc2d2dd](https://github.com/helsingborg-stad/municipio-clone/commit/dc2d2dd08d582a5fbc645973a76aff40322c298a))
+
 ## [1.1.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.0.0...v1.1.0) (2026-09-21)
 
 
