@@ -47,7 +47,7 @@ class Config
             return hash('sha256', (string) AUTH_KEY, true);
         }
 
-        return hash('sha256', __FILE__, true);
+        throw new \RuntimeException('Municipio Clone requires MUNICIPIO_CLONE_ENCRYPTION_KEY or AUTH_KEY to encrypt cached artifacts.');
     }
 
     public static function apiKey(): string

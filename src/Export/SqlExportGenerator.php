@@ -76,6 +76,16 @@ class SqlExportGenerator
             return (string) $value;
         }
 
-        return sprintf("'%s'", str_replace(['\\', "'"], ['\\\\', "\\'"], (string) $value));
+        $escapedValue = strtr((string) $value, [
+            "\\" => "\\\\",
+            "'" => "\\'",
+            "\0" => "\\0",
+            "\n" => "\\n",
+            "\r" => "\\r",
+            "\t" => "\\t",
+            "\x1a" => "\\Z",
+        ]);
+
+        return sprintf("'%s'", $escapedValue);
     }
 }

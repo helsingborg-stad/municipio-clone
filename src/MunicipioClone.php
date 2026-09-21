@@ -38,6 +38,7 @@ class MunicipioClone
 
     public function boot(): void
     {
+        $this->capabilityRegistrar->register();
         $logger = new PhpErrorLogger();
         $artifactStorage = new EncryptedArtifactStorage(
             Config::storageDirectory(),

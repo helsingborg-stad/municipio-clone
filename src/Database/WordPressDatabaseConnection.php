@@ -48,7 +48,8 @@ class WordPressDatabaseConnection implements DatabaseConnectionInterface
     {
         global $wpdb;
 
-        $row = $wpdb->get_row(sprintf('SHOW CREATE TABLE `%s`', esc_sql($table)), ARRAY_N);
+        $this->assertValidTableName($table);
+        $row = $wpdb->get_row(sprintf('SHOW CREATE TABLE `%s`', $table), ARRAY_N);
 
         return (string) ($row[1] ?? '');
     }
@@ -57,6 +58,15 @@ class WordPressDatabaseConnection implements DatabaseConnectionInterface
     {
         global $wpdb;
 
-        return $wpdb->get_results(sprintf('SELECT * FROM `%s`', esc_sql($table)), ARRAY_A) ?: [];
+        $this->assertValidTableName($table);
+
+        return $wpdb->get_results(sprintf('SELECT * FROM `%s`', $table), ARRAY_A) ?: [];
+    }
+
+    private function assertValidTableName(string $table): void
+    {
+        if (preg_match('/^[A-Za-z0-9_]+$/', $table) !== 1) {
+            throw new \InvalidArgumentException(sprintf('Invalid table name "%s".', $table));
+        }
     }
 }

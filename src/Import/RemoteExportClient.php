@@ -72,6 +72,16 @@ class RemoteExportClient
             throw new \RuntimeException(sprintf('HTTP request to %s failed.', $url));
         }
 
+        $statusLine = $http_response_header[0] ?? '';
+        if (preg_match('/\\s(\\d{3})\\s/', $statusLine, $matches) !== 1) {
+            throw new \RuntimeException(sprintf('HTTP response from %s did not include a valid status code.', $url));
+        }
+
+        $statusCode = (int) $matches[1];
+        if ($statusCode < 200 || $statusCode >= 300) {
+            throw new \RuntimeException(sprintf('HTTP request to %s returned status %d.', $url, $statusCode));
+        }
+
         return $body;
     }
 }

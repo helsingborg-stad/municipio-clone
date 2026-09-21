@@ -51,6 +51,7 @@ class CloneCommandTest extends TestCase
 
     public function testHandleDownloadsRemapsAndImportsArtifact(): void
     {
+        $previousEnvironment = getenv('WP_ENVIRONMENT_TYPE');
         putenv('WP_ENVIRONMENT_TYPE=local');
         $artifactPath = tempnam(sys_get_temp_dir(), 'municipio-clone-test-');
         file_put_contents($artifactPath, 'CREATE TABLE `wp_7_posts` ();');
@@ -89,7 +90,11 @@ class CloneCommandTest extends TestCase
             },
         );
 
-        $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test/site']);
+        try {
+            $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test/site']);
+        } finally {
+            putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
+        }
 
         $this->assertStringContainsString('wp_3_posts', (string) file_get_contents($artifactPath));
     }

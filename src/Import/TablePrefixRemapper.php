@@ -16,8 +16,11 @@ class TablePrefixRemapper
         }
 
         $content = (string) file_get_contents($path);
-        $content = str_replace(sprintf('`%s', $sourcePrefix), sprintf('`%s', $targetPrefix), $content);
-        $content = str_replace(sprintf(' %s', $sourcePrefix), sprintf(' %s', $targetPrefix), $content);
+        $content = preg_replace(
+            '/`' . preg_quote($sourcePrefix, '/') . '([A-Za-z0-9_]+)`/',
+            sprintf('`%s$1`', $targetPrefix),
+            $content,
+        ) ?? $content;
         file_put_contents($path, $content);
 
         return $path;
