@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MunicipioClone\Tests\Unit\Authentication;
+namespace MunicipioClone\Tests\Authentication;
 
 use MunicipioClone\Authentication\ApiKeyAuthenticator;
 use MunicipioClone\Capability\CapabilityRegistrar;

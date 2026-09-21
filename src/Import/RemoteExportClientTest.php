@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MunicipioClone\Tests\Unit\Import;
+namespace MunicipioClone\Tests\Import;
 
 use MunicipioClone\Import\RemoteExportClient;
 use PHPUnit\Framework\TestCase;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MunicipioClone\Tests\Unit\Cli;
+namespace MunicipioClone\Tests\Cli;
 
 use MunicipioClone\Cli\CloneCommand;
 use MunicipioClone\Contracts\LoggerInterface;

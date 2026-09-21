@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MunicipioClone\Tests\Unit\Storage;
+namespace MunicipioClone\Tests\Storage;
 
 use MunicipioClone\Storage\EncryptedArtifactStorage;
 use PHPUnit\Framework\TestCase;

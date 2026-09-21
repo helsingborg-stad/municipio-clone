@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MunicipioClone\Tests\Unit\Export;
+namespace MunicipioClone\Tests\Export;
 
 use MunicipioClone\Export\DataWasher;
 use MunicipioClone\Export\FakeDataGenerator;

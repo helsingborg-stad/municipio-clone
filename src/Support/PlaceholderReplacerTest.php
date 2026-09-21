@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MunicipioClone\Tests\Unit\Support;
+namespace MunicipioClone\Tests\Support;
 
 use MunicipioClone\Support\PlaceholderReplacer;
 use PHPUnit\Framework\TestCase;
