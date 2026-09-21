@@ -7,7 +7,7 @@ namespace MunicipioClone\Tests\Authentication;
 use MunicipioClone\Authentication\ApiKeyAuthenticator;
 use MunicipioClone\Capability\CapabilityRegistrar;
 use PHPUnit\Framework\TestCase;
-use WpService\Implementations\FakeWpService;
+use MunicipioClone\Tests\TestDoubles\MutableWpService;
 
 /**
  * @covers \MunicipioClone\Authentication\ApiKeyAuthenticator
@@ -28,7 +28,7 @@ class ApiKeyAuthenticatorTest extends TestCase
             }
         };
 
-        $result = (new ApiKeyAuthenticator(new FakeWpService()))->authenticate($request);
+        $result = (new ApiKeyAuthenticator(new MutableWpService()))->authenticate($request);
 
         $this->assertInstanceOf(\WP_Error::class, $result);
         $this->assertSame('Missing Municipio Clone API key.', $result->get_error_message());
@@ -36,7 +36,7 @@ class ApiKeyAuthenticatorTest extends TestCase
 
     public function testAuthenticateReturnsErrorWhenApiKeyIsInvalid(): void
     {
-        $wpService = new FakeWpService();
+        $wpService = new MutableWpService();
         $wpService->users = [(object) ['ID' => 12]];
         $wpService->capabilities[12][CapabilityRegistrar::CAPABILITY] = true;
         $wpService->userMeta[12]['municipio_clone_api_keys'] = [password_hash('expected-key', PASSWORD_DEFAULT)];
@@ -56,7 +56,7 @@ class ApiKeyAuthenticatorTest extends TestCase
 
     public function testAuthenticateReturnsErrorWhenCapabilityIsMissing(): void
     {
-        $wpService = new FakeWpService();
+        $wpService = new MutableWpService();
         $wpService->users = [(object) ['ID' => 12]];
         $wpService->userMeta[12]['municipio_clone_api_keys'] = [password_hash('secret-key', PASSWORD_DEFAULT)];
         $wpService->userMeta[12]['municipio_clone_api_key_lookup'] = [$this->lookup('secret-key')];
@@ -75,7 +75,7 @@ class ApiKeyAuthenticatorTest extends TestCase
 
     public function testAuthenticateReturnsUserIdForValidCapabilityBoundKey(): void
     {
-        $wpService = new FakeWpService();
+        $wpService = new MutableWpService();
         $wpService->users = [(object) ['ID' => 12]];
         $wpService->capabilities[12][CapabilityRegistrar::CAPABILITY] = true;
         $wpService->userMeta[12]['municipio_clone_api_keys'] = [password_hash('secret-key', PASSWORD_DEFAULT)];

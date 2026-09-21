@@ -4,12 +4,12 @@
   "type": "wordpress-plugin",
   "license": "MIT",
   "require": {
-    "php": "^8.2"
+    "php": "^8.2",
+    "helsingborg-stad/wpservice": "2.0.9"
   },
   "autoload": {
     "psr-4": {
-      "MunicipioClone\\": "src/",
-      "WpService\\": "src/WpService/"
+      "MunicipioClone\\": "src/"
     }
   },
   "autoload-dev": {

@@ -8,7 +8,7 @@ use MunicipioClone\Export\DataWasher;
 use MunicipioClone\Export\FakeDataGenerator;
 use MunicipioClone\Export\WasherRegistry;
 use PHPUnit\Framework\TestCase;
-use WpService\Implementations\FakeWpService;
+use MunicipioClone\Tests\TestDoubles\MutableWpService;
 
 /**
  * @covers \MunicipioClone\Export\DataWasher
@@ -18,7 +18,7 @@ class DataWasherTest extends TestCase
 {
     public function testUsersTableIsExcluded(): void
     {
-        $rules = (new WasherRegistry(new FakeWpService()))->all();
+        $rules = (new WasherRegistry(new MutableWpService()))->all();
         $washer = new DataWasher($rules, new FakeDataGenerator());
 
         $this->assertTrue($washer->shouldExcludeTable('wp_users'));
@@ -26,7 +26,7 @@ class DataWasherTest extends TestCase
 
     public function testCommentEmailIsFaked(): void
     {
-        $rules = (new WasherRegistry(new FakeWpService()))->all();
+        $rules = (new WasherRegistry(new MutableWpService()))->all();
         $washer = new DataWasher($rules, new FakeDataGenerator());
 
         $row = $washer->washRow('wp_comments', ['comment_author_email' => 'person@example.com']);
@@ -37,7 +37,7 @@ class DataWasherTest extends TestCase
 
     public function testBillingPostmetaValueIsFakedConditionally(): void
     {
-        $rules = (new WasherRegistry(new FakeWpService()))->all();
+        $rules = (new WasherRegistry(new MutableWpService()))->all();
         $washer = new DataWasher($rules, new FakeDataGenerator());
 
         $row = $washer->washRow('wp_postmeta', ['meta_key' => '_billing_email', 'meta_value' => 'person@example.com']);

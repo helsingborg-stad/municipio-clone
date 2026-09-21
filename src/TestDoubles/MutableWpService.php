@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace WpService\Implementations;
+namespace MunicipioClone\Tests\TestDoubles;
 
-use WpService\WpService;
+use WpService\Implementations\FakeWpService;
 
 /**
- * Fake service used for unit testing.
+ * Package-backed fake with mutable state for focused unit tests.
  */
-class FakeWpService implements WpService
+class MutableWpService extends FakeWpService
 {
     public array $actions = [];
     public array $routes = [];
@@ -19,14 +19,13 @@ class FakeWpService implements WpService
     public array $users = [];
     public array $userMeta = [];
     public array $sites = [];
-    public array $blogPrefixes = [1 => 'wp_'];
     public bool $multisite = false;
     public int $currentBlogId = 1;
     public string $homeUrl = 'https://source.example.test';
     public array $capabilities = [];
     public array $superAdmins = [];
 
-    public function addAction(string $hookName, callable $callback, int $priority = 10, int $acceptedArgs = 1): bool
+    public function addAction(string $hookName, callable $callback, int $priority = 10, int $acceptedArgs = 1): true
     {
         $this->actions[] = [$hookName, $callback, $priority, $acceptedArgs];
 
@@ -45,9 +44,9 @@ class FakeWpService implements WpService
         return $this->capabilities['current'][$capability] ?? false;
     }
 
-    public function userCan(int|object $user, string $capability, mixed ...$args): bool
+    public function userCan(int|\WP_User $user, string $capability, mixed ...$args): bool
     {
-        $userId = is_object($user) ? (int) ($user->ID ?? 0) : $user;
+        $userId = $user instanceof \WP_User ? (int) ($user->ID ?? 0) : $user;
 
         return $this->capabilities[$userId][$capability] ?? false;
     }
@@ -57,7 +56,7 @@ class FakeWpService implements WpService
         return $userId !== false && in_array($userId, $this->superAdmins, true);
     }
 
-    public function getRole(string $role): object|null
+    public function getRole(string $role): \WP_Role|null
     {
         return $this->roles[$role] ?? null;
     }
@@ -77,7 +76,7 @@ class FakeWpService implements WpService
         return $this->multisite;
     }
 
-    public function wpInsertSite(array $data): int|object
+    public function wpInsertSite(array $data): int|\WP_Error
     {
         $id = count($this->sites) + 1;
         $site = (object) array_merge(['blog_id' => $id], $data);
@@ -88,10 +87,26 @@ class FakeWpService implements WpService
 
     public function getSites(string|array $args = []): array|int
     {
-        return $this->sites;
+        if (!is_array($args) || $args === []) {
+            return $this->sites;
+        }
+
+        return array_values(array_filter($this->sites, static function (object $site) use ($args): bool {
+            foreach ($args as $key => $value) {
+                if ($key === 'number') {
+                    continue;
+                }
+
+                if (($site->{$key} ?? null) !== $value) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
     }
 
-    public function restUrl(string $path = '', string $scheme = 'rest'): string
+    public function restUrl(string $path = '', string|null $scheme = 'rest'): string
     {
         return 'https://source.example.test/wp-json/' . ltrim($path, '/');
     }
@@ -140,7 +155,7 @@ class FakeWpService implements WpService
         return true;
     }
 
-    public function switchToBlog(int $newBlogId, bool $deprecated = null): bool
+    public function switchToBlog(int $newBlogId, bool $deprecated = null): true
     {
         $this->currentBlogId = $newBlogId;
 

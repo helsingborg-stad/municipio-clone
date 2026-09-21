@@ -6,7 +6,7 @@ namespace MunicipioClone\Tests\Support;
 
 use MunicipioClone\Support\PlaceholderReplacer;
 use PHPUnit\Framework\TestCase;
-use WpService\Implementations\FakeWpService;
+use MunicipioClone\Tests\TestDoubles\MutableWpService;
 
 /**
  * @covers \MunicipioClone\Support\PlaceholderReplacer
@@ -15,7 +15,7 @@ class PlaceholderReplacerTest extends TestCase
 {
     public function testReplaceUpdatesSerializedPayloadWithoutBreakingSerialization(): void
     {
-        $wpService = new FakeWpService();
+        $wpService = new MutableWpService();
         $replacer = new PlaceholderReplacer($wpService);
         $serialized = serialize(['url' => 'https://source.example.test/path']);
 
@@ -30,7 +30,7 @@ class PlaceholderReplacerTest extends TestCase
 
     public function testReplaceUpdatesPlainStrings(): void
     {
-        $replacer = new PlaceholderReplacer(new FakeWpService());
+        $replacer = new PlaceholderReplacer(new MutableWpService());
 
         $result = $replacer->replace('https://source.example.test/path', 'https://source.example.test', 'https://target.example.test');
 
@@ -39,7 +39,7 @@ class PlaceholderReplacerTest extends TestCase
 
     public function testReplaceTraversesNestedArraysAndObjects(): void
     {
-        $replacer = new PlaceholderReplacer(new FakeWpService());
+        $replacer = new PlaceholderReplacer(new MutableWpService());
         $payload = [
             'direct' => 'https://source.example.test/first',
             'object' => (object) ['url' => 'https://source.example.test/second'],

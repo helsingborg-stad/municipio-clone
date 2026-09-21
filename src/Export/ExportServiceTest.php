@@ -11,7 +11,7 @@ use MunicipioClone\Export\ExportService;
 use MunicipioClone\Export\SqlExportGenerator;
 use MunicipioClone\Support\RateLimiter;
 use PHPUnit\Framework\TestCase;
-use WpService\Implementations\FakeWpService;
+use MunicipioClone\Tests\TestDoubles\MutableWpService;
 
 /**
  * @covers \MunicipioClone\Export\ExportService
@@ -50,7 +50,7 @@ class ExportServiceTest extends TestCase
             }
         };
 
-        $service = new ExportService($storage, $generator, new RateLimiter(new FakeWpService(), 600), $logger);
+        $service = new ExportService($storage, $generator, new RateLimiter(new MutableWpService(), 600), $logger);
         $result = $service->create('cache-key', false, 12);
 
         $this->assertSame('generated', $result['cache_status']);
@@ -86,7 +86,7 @@ class ExportServiceTest extends TestCase
                 $this->entries[] = [$message, $context];
             }
         };
-        $wpService = new FakeWpService();
+        $wpService = new MutableWpService();
         $wpService->transients['municipio_clone_force_' . hash('sha256', 'cache-key')] = time();
         $service = new ExportService($storage, $generator, new RateLimiter($wpService, 600), $logger);
 
@@ -125,7 +125,7 @@ class ExportServiceTest extends TestCase
             }
         };
 
-        $service = new ExportService($storage, $generator, new RateLimiter(new FakeWpService(), 600), $logger);
+        $service = new ExportService($storage, $generator, new RateLimiter(new MutableWpService(), 600), $logger);
         $result = $service->create('cache-key', true, 12);
 
         $this->assertSame('forced', $result['cache_status']);
