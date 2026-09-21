@@ -19,6 +19,15 @@ class Config
         return defined('MUNICIPIO_CLONE_FORCE_WINDOW') ? (int) MUNICIPIO_CLONE_FORCE_WINDOW : 600;
     }
 
+    /**
+     * Seconds allowed for a single export request to run before PHP's execution
+     * time limit kills it. 0 means unlimited.
+     */
+    public static function exportTimeLimit(): int
+    {
+        return defined('MUNICIPIO_CLONE_EXPORT_TIME_LIMIT') ? (int) MUNICIPIO_CLONE_EXPORT_TIME_LIMIT : 300;
+    }
+
     public static function placeholderUrl(): string
     {
         return defined('MUNICIPIO_CLONE_PLACEHOLDER_URL') ? (string) MUNICIPIO_CLONE_PLACEHOLDER_URL : 'https://municipio-clone-placeholder.invalid';

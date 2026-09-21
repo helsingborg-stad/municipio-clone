@@ -70,6 +70,8 @@ class ExportController
             $force = (bool) ($params['force'] ?? false);
         }
 
+        $this->extendRuntimeForExport();
+
         $sourceIdentifier = $this->wpService->getHomeUrl($this->wpService->getCurrentBlogId()) . '#' . $this->wpService->getCurrentBlogId();
         $export = $this->exportService->create($sourceIdentifier, $force, $authenticatedUserId);
         /** @var ArtifactManifest $manifest */
@@ -101,6 +103,28 @@ class ExportController
         return new \WP_REST_Response($this->artifactStorage->retrieveContent($artifactId), 200, [
             'Content-Type' => 'application/sql',
         ]);
+    }
+
+    /**
+     * Raises PHP's execution time limit so large exports do not 500 mid-request.
+     */
+    private function extendRuntimeForExport(): void
+    {
+        $timeLimit = Config::exportTimeLimit();
+        if (function_exists('set_time_limit') && !$this->isPhpFunctionDisabled('set_time_limit')) {
+            set_time_limit($timeLimit);
+        }
+
+        if (function_exists('ignore_user_abort')) {
+            ignore_user_abort(true);
+        }
+    }
+
+    private function isPhpFunctionDisabled(string $functionName): bool
+    {
+        $disabledFunctions = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+
+        return in_array($functionName, $disabledFunctions, true);
     }
 
     private function storeAuthenticatedUserId(object $request, int $userId): void
