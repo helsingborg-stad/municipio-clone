@@ -15,7 +15,7 @@ class TargetSiteManager
     {
     }
 
-    public function prepare(string $targetUrl): array
+    public function prepare(string $targetUrl, array $associativeArguments = []): array
     {
         $blogId = $this->wpService->getCurrentBlogId();
         if (!$this->wpService->isMultisite()) {
@@ -49,7 +49,7 @@ class TargetSiteManager
             $sitePath = (string) ($site->path ?? '/');
             if ($siteDomain === $domain && $sitePath === $path) {
                 if (class_exists('WP_CLI')) {
-                    \WP_CLI::confirm(sprintf('Overwrite existing target subsite %s?', $targetUrl));
+                    \WP_CLI::confirm(sprintf('Overwrite existing target subsite %s?', $targetUrl), $associativeArguments);
                 }
 
                 return [
