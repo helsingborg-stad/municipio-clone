@@ -58,6 +58,7 @@ class RemoteExportClient
 
         $bytesWritten = file_put_contents($path, $body);
         if ($bytesWritten === false || $bytesWritten !== strlen($body)) {
+            @unlink($path);
             throw new \RuntimeException('Failed to persist the downloaded artifact to disk.');
         }
 

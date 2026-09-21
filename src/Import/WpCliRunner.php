@@ -9,7 +9,7 @@ namespace MunicipioClone\Import;
  */
 class WpCliRunner
 {
-    public function run(string $command): void
+    public function run(string $command): string
     {
         if (!class_exists('WP_CLI')) {
             throw new \RuntimeException('WP-CLI is required to run municipio clone.');
@@ -32,7 +32,9 @@ class WpCliRunner
                 throw new \RuntimeException(sprintf('WP-CLI command failed with exit code %d: %s%s', (int) $exitCode, $command, $output !== '' ? ' - ' . $output : ''));
             }
 
-            return;
+            return trim((string) (($result['stdout'] ?? '') . "\n" . ($result['stderr'] ?? '')));
         }
+
+        return (string) $result;
     }
 }

@@ -16,7 +16,11 @@ class DatabaseImporter
     public function import(string $artifactPath, string $targetUrl): void
     {
         $this->wpCliRunner->run(sprintf('db import %s', escapeshellarg($artifactPath)));
-        $tables = $this->extractTables($artifactPath);
+        $tablesOutput = $this->wpCliRunner->run(sprintf(
+            'db tables --all-tables-with-prefix --format=csv --url=%s',
+            escapeshellarg($targetUrl),
+        ));
+        $tables = array_values(array_filter(array_map('trim', explode(',', str_replace("\n", ',', $tablesOutput)))));
         $tableArguments = $tables !== [] ? ' ' . implode(' ', array_map('escapeshellarg', $tables)) : '';
         $this->wpCliRunner->run(sprintf(
             'search-replace %s %s%s --precise --skip-columns=guid --url=%s',
@@ -25,22 +29,5 @@ class DatabaseImporter
             $tableArguments,
             escapeshellarg($targetUrl),
         ));
-    }
-
-    /**
-     * @return string[]
-     */
-    private function extractTables(string $artifactPath): array
-    {
-        $file = new \SplFileObject($artifactPath, 'r');
-        $tables = [];
-        while (!$file->eof()) {
-            $line = (string) $file->fgets();
-            if (preg_match('/(?:DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `([A-Za-z0-9_]+)`/', $line, $matches) === 1) {
-                $tables[] = $matches[1];
-            }
-        }
-
-        return array_values(array_unique($tables));
     }
 }

@@ -44,7 +44,7 @@ class TargetSiteManager
             $path .= '/';
         }
 
-        foreach ((array) $this->wpService->getSites(['number' => 1, 'domain' => $domain, 'path' => $path]) as $site) {
+        foreach ((array) $this->wpService->getSites(['domain' => $domain, 'path' => $path]) as $site) {
             $siteDomain = (string) ($site->domain ?? '');
             $sitePath = (string) ($site->path ?? '/');
             if ($siteDomain === $domain && $sitePath === $path) {
@@ -63,6 +63,7 @@ class TargetSiteManager
         $createdBlogId = $this->wpService->wpInsertSite([
             'domain' => $domain,
             'path' => $path,
+            'scheme' => strtolower((string) $targetParts['scheme']),
         ]);
         if ($createdBlogId instanceof \WP_Error) {
             throw new \RuntimeException((string) $createdBlogId->get_error_message());

@@ -26,6 +26,7 @@ class PlaceholderReplacer
         }
 
         if (is_object($value)) {
+            $value = clone $value;
             foreach (get_object_vars($value) as $property => $item) {
                 $replacement = $this->replace($item, $search, $replace);
                 try {

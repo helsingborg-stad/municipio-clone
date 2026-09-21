@@ -68,6 +68,7 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
         $manifestJson = json_encode($manifest->toArray(), JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
         $metadataWriteResult = file_put_contents($this->metadataPath($artifactId), $manifestJson);
         if ($metadataWriteResult === false || $metadataWriteResult !== strlen($manifestJson)) {
+            @unlink($this->payloadPath($artifactId));
             throw new \RuntimeException('Failed to persist the export artifact metadata.');
         }
 
