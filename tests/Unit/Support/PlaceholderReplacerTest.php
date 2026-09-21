@@ -27,4 +27,27 @@ class PlaceholderReplacerTest extends TestCase
             unserialize($result, ['allowed_classes' => false]),
         );
     }
+
+    public function testReplaceUpdatesPlainStrings(): void
+    {
+        $replacer = new PlaceholderReplacer(new FakeWpService());
+
+        $result = $replacer->replace('https://source.example.test/path', 'https://source.example.test', 'https://target.example.test');
+
+        $this->assertSame('https://target.example.test/path', $result);
+    }
+
+    public function testReplaceTraversesNestedArraysAndObjects(): void
+    {
+        $replacer = new PlaceholderReplacer(new FakeWpService());
+        $payload = [
+            'direct' => 'https://source.example.test/first',
+            'object' => (object) ['url' => 'https://source.example.test/second'],
+        ];
+
+        $result = $replacer->replace($payload, 'https://source.example.test', 'https://target.example.test');
+
+        $this->assertSame('https://target.example.test/first', $result['direct']);
+        $this->assertSame('https://target.example.test/second', $result['object']->url);
+    }
 }

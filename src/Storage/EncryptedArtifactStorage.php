@@ -66,6 +66,11 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
 
     public function retrieveContent(string $artifactId): string
     {
+        $manifest = $this->loadManifest($artifactId);
+        if ($manifest === null || $manifest->expiresAt < time()) {
+            throw new \RuntimeException('The requested export artifact does not exist or has expired.');
+        }
+
         $payload = (string) file_get_contents($this->payloadPath($artifactId));
         $ivLength = (int) openssl_cipher_iv_length('aes-256-cbc');
         $iv = substr($payload, 0, $ivLength);
@@ -88,6 +93,21 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
     private function artifactIdFromCacheKey(string $cacheKey): string
     {
         return substr(hash('sha256', $cacheKey), 0, 32);
+    }
+
+    private function loadManifest(string $artifactId): ?ArtifactManifest
+    {
+        $metadataPath = $this->metadataPath($artifactId);
+        if (!is_file($metadataPath)) {
+            return null;
+        }
+
+        $metadata = json_decode((string) file_get_contents($metadataPath), true);
+        if (!is_array($metadata)) {
+            return null;
+        }
+
+        return ArtifactManifest::fromArray($metadata);
     }
 
     private function payloadPath(string $artifactId): string

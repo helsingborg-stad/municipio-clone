@@ -17,7 +17,7 @@ class RateLimiter
 
     public function acquire(string $key): bool
     {
-        $transientKey = 'municipio_clone_force_' . md5($key);
+        $transientKey = 'municipio_clone_force_' . hash('sha256', $key);
         if ($this->wpService->getTransient($transientKey) !== false) {
             return false;
         }

@@ -33,7 +33,7 @@ class DatabaseImporter
     private function extractTables(string $artifactPath): array
     {
         $content = (string) file_get_contents($artifactPath);
-        preg_match_all('/`([A-Za-z0-9_]+)`/', $content, $matches);
+        preg_match_all('/(?:DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `([A-Za-z0-9_]+)`/', $content, $matches);
 
         return array_values(array_unique($matches[1] ?? []));
     }

@@ -58,9 +58,8 @@ class ExportController
 
     public function handleExport(object $request): \WP_REST_Response|\WP_Error
     {
-        $result = $this->apiKeyAuthenticator->authenticate($request);
-        if ($result instanceof \WP_Error) {
-            return $result;
+        if ($this->authenticatedUserId <= 0) {
+            return new \WP_Error('municipio_clone_unauthenticated', 'Authentication state was not established before export handling.', ['status' => 401]);
         }
 
         $force = false;
@@ -70,7 +69,7 @@ class ExportController
         }
 
         $sourceIdentifier = $this->wpService->getHomeUrl($this->wpService->getCurrentBlogId()) . '#' . $this->wpService->getCurrentBlogId();
-        $export = $this->exportService->create($sourceIdentifier, $force, (int) $result['user_id']);
+        $export = $this->exportService->create($sourceIdentifier, $force, $this->authenticatedUserId);
         /** @var ArtifactManifest $manifest */
         $manifest = $export['manifest'];
 
@@ -88,9 +87,8 @@ class ExportController
 
     public function downloadArtifact(object $request): \WP_REST_Response|\WP_Error
     {
-        $result = $this->apiKeyAuthenticator->authenticate($request);
-        if ($result instanceof \WP_Error) {
-            return $result;
+        if ($this->authenticatedUserId <= 0) {
+            return new \WP_Error('municipio_clone_unauthenticated', 'Authentication state was not established before artifact download.', ['status' => 401]);
         }
 
         $artifactId = method_exists($request, 'get_param') ? (string) $request->get_param('artifact') : '';

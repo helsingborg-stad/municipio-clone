@@ -57,6 +57,7 @@ class CloneCommandTest extends TestCase
         file_put_contents($artifactPath, <<<'SQL'
 CREATE TABLE `wp_7_posts` ();
 INSERT INTO `wp_7_options` (`option_name`, `option_value`) VALUES ('wp_7_user_roles', 'wp_7_capabilities');
+INSERT INTO `wp_7_posts` (`post_content`) VALUES ('wp_7_posts');
 SQL);
 
         $client = $this->createMock(RemoteExportClient::class);
@@ -65,6 +66,7 @@ SQL);
             'checksum' => hash('sha256', <<<'SQL'
 CREATE TABLE `wp_7_posts` ();
 INSERT INTO `wp_7_options` (`option_name`, `option_value`) VALUES ('wp_7_user_roles', 'wp_7_capabilities');
+INSERT INTO `wp_7_posts` (`post_content`) VALUES ('wp_7_posts');
 SQL),
             'source_table_prefix' => 'wp_7_',
             'cache_status' => 'generated',
@@ -105,5 +107,6 @@ SQL),
         $this->assertStringContainsString('wp_3_posts', (string) file_get_contents($artifactPath));
         $this->assertStringContainsString('wp_3_user_roles', (string) file_get_contents($artifactPath));
         $this->assertStringContainsString('wp_3_capabilities', (string) file_get_contents($artifactPath));
+        $this->assertStringContainsString("'wp_7_posts'", (string) file_get_contents($artifactPath));
     }
 }

@@ -25,7 +25,7 @@ class TablePrefixRemapper
             "/'((?:[^'\\\\]|\\\\.)*)'/",
             static function (array $matches) use ($sourcePrefix, $targetPrefix): string {
                 $updated = preg_replace(
-                    '/\\b' . preg_quote($sourcePrefix, '/') . '([A-Za-z0-9_]+)/',
+                    '/\\b' . preg_quote($sourcePrefix, '/') . '(user_roles|capabilities|user_level)\\b/',
                     $targetPrefix . '$1',
                     $matches[1],
                 );
