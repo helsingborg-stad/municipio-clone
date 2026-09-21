@@ -36,6 +36,8 @@ class TargetSiteManager
         }
 
         $domain = (string) ($targetParts['host'] ?? '');
+        $port = isset($targetParts['port']) ? ':' . (int) $targetParts['port'] : '';
+        $domainWithPort = $domain . $port;
         $path = (string) ($targetParts['path'] ?? '/');
         if ($path === '') {
             $path = '/';
@@ -44,10 +46,10 @@ class TargetSiteManager
             $path .= '/';
         }
 
-        foreach ((array) $this->wpService->getSites(['number' => 0]) as $site) {
+        foreach ((array) $this->wpService->getSites(['number' => 1, 'domain' => $domainWithPort, 'path' => $path]) as $site) {
             $siteDomain = (string) ($site->domain ?? '');
             $sitePath = (string) ($site->path ?? '/');
-            if ($siteDomain === $domain && $sitePath === $path) {
+            if ($siteDomain === $domainWithPort && $sitePath === $path) {
                 if (class_exists('WP_CLI')) {
                     \WP_CLI::confirm(sprintf('Overwrite existing target subsite %s?', $targetUrl));
                 }
@@ -61,7 +63,7 @@ class TargetSiteManager
         }
 
         $createdBlogId = $this->wpService->wpInsertSite([
-            'domain' => $domain,
+            'domain' => $domainWithPort,
             'path' => $path,
         ]);
         if ($createdBlogId instanceof \WP_Error) {

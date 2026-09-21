@@ -21,20 +21,23 @@ class TablePrefixRemapper
             sprintf('`%s$1`', $targetPrefix),
             $content,
         ) ?? $content;
-        $content = preg_replace_callback(
-            "/'((?:[^'\\\\]|\\\\.)*)'/",
-            static function (array $matches) use ($sourcePrefix, $targetPrefix): string {
-                $updated = preg_replace(
-                    '/\\b' . preg_quote($sourcePrefix, '/') . '(user_roles|capabilities|user_level)\\b/',
-                    $targetPrefix . '$1',
-                    $matches[1],
-                );
+        $lines = explode("\n", $content);
+        foreach ($lines as $index => $line) {
+            if (preg_match('/INSERT INTO `[^`]+_(options|usermeta)`/', $line) !== 1) {
+                continue;
+            }
 
-                return sprintf("'%s'", $updated ?? $matches[1]);
-            },
-            $content,
-        ) ?? $content;
-        file_put_contents($path, $content);
+            $lines[$index] = preg_replace(
+                "/'" . preg_quote($sourcePrefix, '/') . "(user_roles|capabilities|user_level)'/",
+                sprintf("'%s\$1'", $targetPrefix),
+                $line,
+            ) ?? $line;
+        }
+
+        $bytesWritten = file_put_contents($path, implode("\n", $lines));
+        if ($bytesWritten === false) {
+            throw new \RuntimeException('Failed to persist the remapped SQL artifact.');
+        }
 
         return $path;
     }

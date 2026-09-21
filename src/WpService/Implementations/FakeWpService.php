@@ -156,7 +156,16 @@ class FakeWpService implements WpService
 
     public function getUsers(array $args = []): array
     {
-        return $this->users;
+        if (!isset($args['meta_key'], $args['meta_value'])) {
+            return $this->users;
+        }
+
+        return array_values(array_filter($this->users, function (object $user) use ($args): bool {
+            $values = $this->userMeta[(int) ($user->ID ?? 0)][$args['meta_key']] ?? [];
+            $values = is_array($values) ? $values : [$values];
+
+            return in_array($args['meta_value'], $values, true);
+        }));
     }
 
     public function getUserMeta(int $userId, string $key = '', bool $single = false): mixed

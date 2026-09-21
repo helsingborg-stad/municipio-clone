@@ -12,6 +12,8 @@ use WpService\WpService;
  */
 class ApiKeyAuthenticator
 {
+    private const LOOKUP_META_KEY = 'municipio_clone_api_key_lookup';
+
     public function __construct(private WpService $wpService)
     {
     }
@@ -23,7 +25,8 @@ class ApiKeyAuthenticator
             return new \WP_Error('municipio_clone_missing_api_key', 'Missing Municipio Clone API key.', ['status' => 401]);
         }
 
-        foreach ($this->wpService->getUsers() as $user) {
+        $lookup = $this->buildLookupFingerprint($apiKey);
+        foreach ($this->wpService->getUsers(['meta_key' => self::LOOKUP_META_KEY, 'meta_value' => $lookup]) as $user) {
             $userId = (int) ($user->ID ?? 0);
             if ($userId <= 0) {
                 continue;
@@ -55,8 +58,17 @@ class ApiKeyAuthenticator
         $keys = is_array($existingKeys) ? $existingKeys : [];
         $keys[] = password_hash($apiKey, PASSWORD_DEFAULT);
         $this->wpService->updateUserMeta($userId, 'municipio_clone_api_keys', $keys);
+        $existingLookup = $this->wpService->getUserMeta($userId, self::LOOKUP_META_KEY, true);
+        $lookupKeys = is_array($existingLookup) ? $existingLookup : [];
+        $lookupKeys[] = $this->buildLookupFingerprint($apiKey);
+        $this->wpService->updateUserMeta($userId, self::LOOKUP_META_KEY, $lookupKeys);
 
         return $apiKey;
+    }
+
+    private function buildLookupFingerprint(string $apiKey): string
+    {
+        return hash_hmac('sha256', $apiKey, 'municipio-clone');
     }
 
     private function extractApiKey(object $request): string

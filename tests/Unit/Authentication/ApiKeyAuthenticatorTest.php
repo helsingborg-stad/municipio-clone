@@ -14,6 +14,11 @@ use WpService\Implementations\FakeWpService;
  */
 class ApiKeyAuthenticatorTest extends TestCase
 {
+    private function lookup(string $apiKey): string
+    {
+        return hash_hmac('sha256', $apiKey, 'municipio-clone');
+    }
+
     public function testAuthenticateReturnsErrorWhenApiKeyIsMissing(): void
     {
         $request = new class() {
@@ -35,6 +40,7 @@ class ApiKeyAuthenticatorTest extends TestCase
         $wpService->users = [(object) ['ID' => 12]];
         $wpService->capabilities[12][CapabilityRegistrar::CAPABILITY] = true;
         $wpService->userMeta[12]['municipio_clone_api_keys'] = [password_hash('expected-key', PASSWORD_DEFAULT)];
+        $wpService->userMeta[12]['municipio_clone_api_key_lookup'] = [$this->lookup('expected-key')];
         $request = new class() {
             public function get_header(string $name): string
             {
@@ -53,6 +59,7 @@ class ApiKeyAuthenticatorTest extends TestCase
         $wpService = new FakeWpService();
         $wpService->users = [(object) ['ID' => 12]];
         $wpService->userMeta[12]['municipio_clone_api_keys'] = [password_hash('secret-key', PASSWORD_DEFAULT)];
+        $wpService->userMeta[12]['municipio_clone_api_key_lookup'] = [$this->lookup('secret-key')];
         $request = new class() {
             public function get_header(string $name): string
             {
@@ -72,6 +79,7 @@ class ApiKeyAuthenticatorTest extends TestCase
         $wpService->users = [(object) ['ID' => 12]];
         $wpService->capabilities[12][CapabilityRegistrar::CAPABILITY] = true;
         $wpService->userMeta[12]['municipio_clone_api_keys'] = [password_hash('secret-key', PASSWORD_DEFAULT)];
+        $wpService->userMeta[12]['municipio_clone_api_key_lookup'] = [$this->lookup('secret-key')];
         $request = new class() {
             public function get_header(string $name): string
             {

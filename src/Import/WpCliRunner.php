@@ -28,8 +28,16 @@ class WpCliRunner
         if (is_array($result)) {
             $exitCode = $result['return_code'] ?? $result['exit_code'] ?? 0;
             if ((int) $exitCode !== 0) {
-                throw new \RuntimeException(sprintf('WP-CLI command failed with exit code %d: %s', (int) $exitCode, $command));
+                $output = trim((string) (($result['stdout'] ?? '') . "\n" . ($result['stderr'] ?? '')));
+                throw new \RuntimeException(sprintf('WP-CLI command failed with exit code %d: %s%s', (int) $exitCode, $command, $output !== '' ? ' - ' . $output : ''));
             }
+
+            return;
+        }
+
+        $output = trim((string) $result);
+        if (str_contains(strtolower($output), 'error')) {
+            throw new \RuntimeException(sprintf('WP-CLI command reported an error for %s: %s', $command, $output));
         }
     }
 }

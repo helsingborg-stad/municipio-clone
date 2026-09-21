@@ -48,7 +48,12 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
             throw new \RuntimeException('Failed to encrypt export artifact.');
         }
 
-        file_put_contents($this->payloadPath($artifactId), $iv . $ciphertext);
+        $payload = $iv . $ciphertext;
+        $payloadWriteResult = file_put_contents($this->payloadPath($artifactId), $payload);
+        if ($payloadWriteResult === false || $payloadWriteResult !== strlen($payload)) {
+            throw new \RuntimeException('Failed to persist the encrypted export payload.');
+        }
+
         $manifest = new ArtifactManifest(
             $artifactId,
             hash('sha256', $content),
@@ -59,7 +64,11 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
             (string) $metadata['source_table_prefix'],
             $cacheKey,
         );
-        file_put_contents($this->metadataPath($artifactId), json_encode($manifest->toArray(), JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+        $manifestJson = json_encode($manifest->toArray(), JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+        $metadataWriteResult = file_put_contents($this->metadataPath($artifactId), $manifestJson);
+        if ($metadataWriteResult === false || $metadataWriteResult !== strlen($manifestJson)) {
+            throw new \RuntimeException('Failed to persist the export artifact metadata.');
+        }
 
         return $manifest;
     }
