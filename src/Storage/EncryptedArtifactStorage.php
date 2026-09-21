@@ -71,8 +71,16 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
             throw new \RuntimeException('The requested export artifact does not exist or has expired.');
         }
 
-        $payload = (string) file_get_contents($this->payloadPath($artifactId));
+        $payload = file_get_contents($this->payloadPath($artifactId));
+        if ($payload === false) {
+            throw new \RuntimeException('Failed to read the requested export artifact payload.');
+        }
+
         $ivLength = (int) openssl_cipher_iv_length('aes-256-cbc');
+        if (strlen($payload) < $ivLength) {
+            throw new \RuntimeException('The requested export artifact payload is incomplete.');
+        }
+
         $iv = substr($payload, 0, $ivLength);
         $ciphertext = substr($payload, $ivLength);
         $plaintext = openssl_decrypt($ciphertext, 'aes-256-cbc', $this->encryptionKey, OPENSSL_RAW_DATA, $iv);

@@ -26,7 +26,7 @@ class TargetSiteManager
             ];
         }
 
-        $targetParts = wp_parse_url($targetUrl);
+        $targetParts = function_exists('wp_parse_url') ? wp_parse_url($targetUrl) : parse_url($targetUrl);
         if (
             $targetParts === false
             || !isset($targetParts['host'], $targetParts['scheme'])

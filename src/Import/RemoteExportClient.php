@@ -51,7 +51,10 @@ class RemoteExportClient
             throw new \RuntimeException('Failed to create a temporary artifact file.');
         }
 
-        file_put_contents($path, $body);
+        $bytesWritten = file_put_contents($path, $body);
+        if ($bytesWritten === false || $bytesWritten !== strlen($body)) {
+            throw new \RuntimeException('Failed to persist the downloaded artifact to disk.');
+        }
 
         return $path;
     }

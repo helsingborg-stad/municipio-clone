@@ -25,15 +25,16 @@ class PlaceholderReplacer
             return $value;
         }
 
-        if ($value instanceof \stdClass) {
+        if (is_object($value)) {
             foreach (get_object_vars($value) as $property => $item) {
-                $value->{$property} = $this->replace($item, $search, $replace);
+                $replacement = $this->replace($item, $search, $replace);
+                try {
+                    $value->{$property} = $replacement;
+                } catch (\Throwable) {
+                    continue;
+                }
             }
 
-            return $value;
-        }
-
-        if (is_object($value)) {
             return $value;
         }
 
