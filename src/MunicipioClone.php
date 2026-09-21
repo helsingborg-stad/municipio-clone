@@ -65,10 +65,10 @@ class MunicipioClone
         );
         $this->wpService->addAction('rest_api_init', [$controller, 'registerRoutes']);
 
-        if (class_exists('WP_CLI') && Config::apiKey() !== '') {
+        if (class_exists('WP_CLI')) {
             $command = new CloneCommand(
                 new TargetEnvironmentGuard(),
-                new RemoteExportClient(Config::apiKey()),
+                static fn(string $apiKey): RemoteExportClient => new RemoteExportClient($apiKey),
                 new TargetSiteManager($this->wpService),
                 new TablePrefixRemapper(),
                 new DatabaseImporter(new WpCliRunner(), Config::placeholderUrl()),

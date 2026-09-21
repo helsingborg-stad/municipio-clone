@@ -49,13 +49,4 @@ class Config
 
         throw new \RuntimeException('Municipio Clone requires MUNICIPIO_CLONE_ENCRYPTION_KEY or AUTH_KEY to encrypt cached artifacts.');
     }
-
-    public static function apiKey(): string
-    {
-        if (defined('MUNICIPIO_CLONE_API_KEY')) {
-            return (string) MUNICIPIO_CLONE_API_KEY;
-        }
-
-        return (string) (getenv('MUNICIPIO_CLONE_API_KEY') ?: '');
-    }
 }

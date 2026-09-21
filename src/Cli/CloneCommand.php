@@ -16,9 +16,12 @@ use MunicipioClone\Import\TargetSiteManager;
  */
 class CloneCommand
 {
+    /**
+     * @param callable(string):RemoteExportClient $remoteExportClientFactory
+     */
     public function __construct(
         private TargetEnvironmentGuard $environmentGuard,
-        private RemoteExportClient $remoteExportClient,
+        private $remoteExportClientFactory,
         private TargetSiteManager $targetSiteManager,
         private TablePrefixRemapper $tablePrefixRemapper,
         private DatabaseImporter $databaseImporter,
@@ -30,16 +33,18 @@ class CloneCommand
     {
         $sourceUrl = (string) ($associativeArguments['url'] ?? '');
         $targetUrl = (string) ($associativeArguments['target'] ?? '');
-        if ($sourceUrl === '' || $targetUrl === '') {
-            throw new \InvalidArgumentException('Both --url and --target are required.');
+        $apiKey = (string) ($associativeArguments['api-key'] ?? '');
+        if ($sourceUrl === '' || $targetUrl === '' || $apiKey === '') {
+            throw new \InvalidArgumentException('The --url, --target, and --api-key arguments are required.');
         }
 
         $force = array_key_exists('force', $associativeArguments) && (string) $associativeArguments['force'] !== 'false';
 
         $this->environmentGuard->assertSafe();
         $targetSite = $this->targetSiteManager->prepare($targetUrl);
-        $manifest = $this->remoteExportClient->requestExport($sourceUrl, $force);
-        $artifactPath = $this->remoteExportClient->downloadArtifact($manifest);
+        $remoteExportClient = ($this->remoteExportClientFactory)($apiKey);
+        $manifest = $remoteExportClient->requestExport($sourceUrl, $force);
+        $artifactPath = $remoteExportClient->downloadArtifact($manifest);
         $artifactPath = $this->tablePrefixRemapper->remapFile(
             $artifactPath,
             (string) ($manifest['source_table_prefix'] ?? 'wp_'),

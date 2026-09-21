@@ -22,7 +22,7 @@ class CloneCommandTest extends TestCase
     {
         $command = new CloneCommand(
             $this->createMock(TargetEnvironmentGuard::class),
-            $this->createMock(RemoteExportClient::class),
+            static fn(string $apiKey): RemoteExportClient => throw new \RuntimeException('should not build client'),
             $this->createMock(TargetSiteManager::class),
             $this->createMock(TablePrefixRemapper::class),
             $this->createMock(DatabaseImporter::class),
@@ -46,6 +46,25 @@ class CloneCommandTest extends TestCase
         $property->setValue($command, $guard);
 
         $this->expectException(\RuntimeException::class);
+        $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test', 'api-key' => 'api-key']);
+    }
+
+    public function testHandleRequiresApiKey(): void
+    {
+        $command = new CloneCommand(
+            new TargetEnvironmentGuard(),
+            static fn(string $apiKey): RemoteExportClient => $this->createMock(RemoteExportClient::class),
+            $this->createMock(TargetSiteManager::class),
+            $this->createMock(TablePrefixRemapper::class),
+            $this->createMock(DatabaseImporter::class),
+            new class() implements LoggerInterface {
+                public function info(string $message, array $context = []): void
+                {
+                }
+            },
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
         $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test']);
     }
 
@@ -87,7 +106,7 @@ SQL),
 
         $command = new CloneCommand(
             new TargetEnvironmentGuard(),
-            $client,
+            static fn(string $apiKey): RemoteExportClient => $client,
             $siteManager,
             new TablePrefixRemapper(),
             $importer,
@@ -99,7 +118,7 @@ SQL),
         );
 
         try {
-            $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test/site']);
+            $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test/site', 'api-key' => 'api-key']);
         } finally {
             putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
         }

@@ -4,7 +4,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 
 ## Features
 
-- `wp municipio clone --url=<source> --target=<target> [--force]`
+- `wp municipio clone --url=<source> --target=<target> --api-key=<key> [--force]`
 - REST export endpoint at `/wp-json/municipio-clone/v1/export`
 - Per-user API key authentication with the `municipio_clone_export` capability
 - Encrypted artifact cache with configurable TTL
@@ -13,12 +13,21 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 
 ## Configuration
 
-- `MUNICIPIO_CLONE_API_KEY` or environment variable `MUNICIPIO_CLONE_API_KEY`
 - `MUNICIPIO_CLONE_CACHE_TTL`
 - `MUNICIPIO_CLONE_FORCE_WINDOW`
 - `MUNICIPIO_CLONE_STORAGE_PATH`
 - `MUNICIPIO_CLONE_ENCRYPTION_KEY`
 - `MUNICIPIO_CLONE_PLACEHOLDER_URL`
+
+## Clone usage
+
+```bash
+wp municipio clone \
+  --url=https://source.example.se/site-a \
+  --target=https://local.example.test/site-b \
+  --api-key=your-personal-export-key \
+  --force
+```
 
 ## Testing
 
