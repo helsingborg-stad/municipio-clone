@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.0.0...v1.1.0) (2026-09-21)
+
+
+### Features
+
+* **clone:** add sanitized export endpoint and clone command ([2fe5208](https://github.com/helsingborg-stad/municipio-clone/commit/2fe5208d09fc7784987e677274b17fe3631b8d93))
+
+
+### Bug Fixes
+
+* **clone:** address review hardening feedback ([2713784](https://github.com/helsingborg-stad/municipio-clone/commit/2713784a64c9892d5b66d5fde8c813fe59af244b))
+* **clone:** harden export and import flows ([33fda10](https://github.com/helsingborg-stad/municipio-clone/commit/33fda10ceb6c656bb97207cb5b77a213f426125b))
+* **clone:** harden transport and artifact handling ([d4837e0](https://github.com/helsingborg-stad/municipio-clone/commit/d4837e067d6f31243044eaf3463fa537f6efaa64))
+* **clone:** normalize request and import edge cases ([9fa83b5](https://github.com/helsingborg-stad/municipio-clone/commit/9fa83b5cbb1b9bdd02d6aa936862dacd64d800a5))
+* **clone:** refine multisite import cleanup behavior ([b2a1109](https://github.com/helsingborg-stad/municipio-clone/commit/b2a1109f69a4b041a85cc420da1b1797b71bf1d9))
+* **clone:** require explicit api key argument ([2d9df83](https://github.com/helsingborg-stad/municipio-clone/commit/2d9df83141a34a93f9d391531af9621a9eec04c0))
+* **clone:** tighten crypto and remote download safeguards ([33c760a](https://github.com/helsingborg-stad/municipio-clone/commit/33c760a7888709f5822db125307787ecce2c8e5e))
+* **clone:** tighten remapping and lookup behavior ([a02cb7d](https://github.com/helsingborg-stad/municipio-clone/commit/a02cb7daac87ee2602f6f5842d50ad474ededddb))
+
 ## [1.0.0] - 2026-09-21
 
 ### Added
