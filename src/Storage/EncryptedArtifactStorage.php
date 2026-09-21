@@ -80,8 +80,8 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
 
     private function ensureDirectory(): void
     {
-        if (!is_dir($this->storageDirectory)) {
-            mkdir($this->storageDirectory, 0700, true);
+        if (!is_dir($this->storageDirectory) && !mkdir($this->storageDirectory, 0700, true) && !is_dir($this->storageDirectory)) {
+            throw new \RuntimeException(sprintf('Failed to create Municipio Clone storage directory: %s', $this->storageDirectory));
         }
     }
 

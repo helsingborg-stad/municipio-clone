@@ -21,6 +21,19 @@ class TablePrefixRemapper
             sprintf('`%s$1`', $targetPrefix),
             $content,
         ) ?? $content;
+        $content = preg_replace_callback(
+            "/'((?:[^'\\\\]|\\\\.)*)'/",
+            static function (array $matches) use ($sourcePrefix, $targetPrefix): string {
+                $updated = preg_replace(
+                    '/\\b' . preg_quote($sourcePrefix, '/') . '([A-Za-z0-9_]+)/',
+                    $targetPrefix . '$1',
+                    $matches[1],
+                );
+
+                return sprintf("'%s'", $updated ?? $matches[1]);
+            },
+            $content,
+        ) ?? $content;
         file_put_contents($path, $content);
 
         return $path;

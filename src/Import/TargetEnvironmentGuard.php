@@ -11,7 +11,10 @@ class TargetEnvironmentGuard
 {
     public function assertSafe(): void
     {
-        $environment = defined('WP_ENVIRONMENT_TYPE') ? (string) WP_ENVIRONMENT_TYPE : (string) (getenv('WP_ENVIRONMENT_TYPE') ?: '');
+        $environment = function_exists('wp_get_environment_type')
+            ? (string) wp_get_environment_type()
+            : (string) (getenv('WP_ENVIRONMENT_TYPE') ?: '');
+
         if (!in_array($environment, ['local', 'development', 'staging'], true)) {
             throw new \RuntimeException('Municipio Clone only allows imports into local, development, or staging environments.');
         }

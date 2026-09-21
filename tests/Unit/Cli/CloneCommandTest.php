@@ -54,12 +54,18 @@ class CloneCommandTest extends TestCase
         $previousEnvironment = getenv('WP_ENVIRONMENT_TYPE');
         putenv('WP_ENVIRONMENT_TYPE=local');
         $artifactPath = tempnam(sys_get_temp_dir(), 'municipio-clone-test-');
-        file_put_contents($artifactPath, 'CREATE TABLE `wp_7_posts` ();');
+        file_put_contents($artifactPath, <<<'SQL'
+CREATE TABLE `wp_7_posts` ();
+INSERT INTO `wp_7_options` (`option_name`, `option_value`) VALUES ('wp_7_user_roles', 'wp_7_capabilities');
+SQL);
 
         $client = $this->createMock(RemoteExportClient::class);
         $client->method('requestExport')->willReturn([
             'download_url' => 'https://source.example.test/download',
-            'checksum' => hash('sha256', 'CREATE TABLE `wp_7_posts` ();'),
+            'checksum' => hash('sha256', <<<'SQL'
+CREATE TABLE `wp_7_posts` ();
+INSERT INTO `wp_7_options` (`option_name`, `option_value`) VALUES ('wp_7_user_roles', 'wp_7_capabilities');
+SQL),
             'source_table_prefix' => 'wp_7_',
             'cache_status' => 'generated',
         ]);
@@ -97,5 +103,7 @@ class CloneCommandTest extends TestCase
         }
 
         $this->assertStringContainsString('wp_3_posts', (string) file_get_contents($artifactPath));
+        $this->assertStringContainsString('wp_3_user_roles', (string) file_get_contents($artifactPath));
+        $this->assertStringContainsString('wp_3_capabilities', (string) file_get_contents($artifactPath));
     }
 }

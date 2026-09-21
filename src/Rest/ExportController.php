@@ -44,11 +44,11 @@ class ExportController
         ]);
     }
 
-    public function permissionCheck(object $request): bool
+    public function permissionCheck(object $request): bool|\WP_Error
     {
         $result = $this->apiKeyAuthenticator->authenticate($request);
         if ($result instanceof \WP_Error) {
-            return false;
+            return $result;
         }
 
         $this->authenticatedUserId = (int) $result['user_id'];
