@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.1...v1.1.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* **cli:** forward overwrite confirmation arguments ([c477cb0](https://github.com/helsingborg-stad/municipio-clone/commit/c477cb0995cd169d866bbe751780c2b8f13da91e))
+
 ## [1.1.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.0...v1.1.1) (2026-09-21)
 
 
