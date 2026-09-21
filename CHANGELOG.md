@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.2...v1.1.3) (2026-09-21)
+
+
+### Bug Fixes
+
+* **export:** extend runtime limit during export to prevent timeout 500s ([7e8923d](https://github.com/helsingborg-stad/municipio-clone/commit/7e8923da0e03dca01e71832e0a0472771c14a42e))
+
 ## [1.1.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.1...v1.1.2) (2026-09-21)
 
 
