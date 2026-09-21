@@ -32,9 +32,15 @@ class DatabaseImporter
      */
     private function extractTables(string $artifactPath): array
     {
-        $content = (string) file_get_contents($artifactPath);
-        preg_match_all('/(?:DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `([A-Za-z0-9_]+)`/', $content, $matches);
+        $file = new \SplFileObject($artifactPath, 'r');
+        $tables = [];
+        while (!$file->eof()) {
+            $line = (string) $file->fgets();
+            if (preg_match('/(?:DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `([A-Za-z0-9_]+)`/', $line, $matches) === 1) {
+                $tables[] = $matches[1];
+            }
+        }
 
-        return array_values(array_unique($matches[1] ?? []));
+        return array_values(array_unique($tables));
     }
 }

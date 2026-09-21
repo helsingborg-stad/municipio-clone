@@ -60,6 +60,6 @@ class PlaceholderReplacer
             return true;
         }
 
-        return preg_match('/^(a|O|s|i|d|b):/', $value) === 1;
+        return $value === 'N;' || preg_match('/^(a|O|s|i|d|b):/', $value) === 1;
     }
 }

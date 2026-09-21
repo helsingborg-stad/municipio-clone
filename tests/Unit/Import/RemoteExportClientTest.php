@@ -34,4 +34,30 @@ class RemoteExportClientTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $client->requestExport('https://source.example.test', false);
     }
+
+    public function testDownloadArtifactRejectsMissingDownloadUrl(): void
+    {
+        $client = new RemoteExportClient('api-key', static fn(string $method, string $url, ?array $payload, string $apiKey): array => [
+            '',
+            ['HTTP/1.1 200 OK'],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $client->downloadArtifact(['checksum' => 'checksum', 'requested_source_origin' => 'https://source.example.test']);
+    }
+
+    public function testDownloadArtifactRejectsCrossOriginDownloadUrl(): void
+    {
+        $client = new RemoteExportClient('api-key', static fn(string $method, string $url, ?array $payload, string $apiKey): array => [
+            'payload',
+            ['HTTP/1.1 200 OK'],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $client->downloadArtifact([
+            'download_url' => 'https://other.example.test/export.sql',
+            'checksum' => hash('sha256', 'payload'),
+            'requested_source_origin' => 'https://source.example.test',
+        ]);
+    }
 }

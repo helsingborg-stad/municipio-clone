@@ -42,13 +42,14 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
     {
         $this->ensureDirectory();
         $artifactId = $this->artifactIdFromCacheKey($cacheKey);
-        $iv = random_bytes((int) openssl_cipher_iv_length('aes-256-cbc'));
-        $ciphertext = openssl_encrypt($content, 'aes-256-cbc', $this->encryptionKey, OPENSSL_RAW_DATA, $iv);
+        $iv = random_bytes((int) openssl_cipher_iv_length('aes-256-gcm'));
+        $tag = '';
+        $ciphertext = openssl_encrypt($content, 'aes-256-gcm', $this->encryptionKey, OPENSSL_RAW_DATA, $iv, $tag);
         if ($ciphertext === false) {
             throw new \RuntimeException('Failed to encrypt export artifact.');
         }
 
-        $payload = $iv . $ciphertext;
+        $payload = $iv . $tag . $ciphertext;
         $payloadWriteResult = file_put_contents($this->payloadPath($artifactId), $payload);
         if ($payloadWriteResult === false || $payloadWriteResult !== strlen($payload)) {
             throw new \RuntimeException('Failed to persist the encrypted export payload.');
@@ -85,14 +86,16 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
             throw new \RuntimeException('Failed to read the requested export artifact payload.');
         }
 
-        $ivLength = (int) openssl_cipher_iv_length('aes-256-cbc');
-        if (strlen($payload) < $ivLength) {
+        $ivLength = (int) openssl_cipher_iv_length('aes-256-gcm');
+        $tagLength = 16;
+        if (strlen($payload) < ($ivLength + $tagLength)) {
             throw new \RuntimeException('The requested export artifact payload is incomplete.');
         }
 
         $iv = substr($payload, 0, $ivLength);
-        $ciphertext = substr($payload, $ivLength);
-        $plaintext = openssl_decrypt($ciphertext, 'aes-256-cbc', $this->encryptionKey, OPENSSL_RAW_DATA, $iv);
+        $tag = substr($payload, $ivLength, $tagLength);
+        $ciphertext = substr($payload, $ivLength + $tagLength);
+        $plaintext = openssl_decrypt($ciphertext, 'aes-256-gcm', $this->encryptionKey, OPENSSL_RAW_DATA, $iv, $tag);
         if ($plaintext === false) {
             throw new \RuntimeException('Failed to decrypt export artifact.');
         }

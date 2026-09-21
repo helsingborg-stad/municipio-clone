@@ -23,7 +23,7 @@ class TablePrefixRemapper
         ) ?? $content;
         $lines = explode("\n", $content);
         foreach ($lines as $index => $line) {
-            if (preg_match('/INSERT INTO `[^`]+_(options|usermeta)`/', $line) !== 1) {
+            if (preg_match('/INSERT INTO `[^`]+_(options|usermeta)` \(([^)]+)\) VALUES \((.+)\);$/', $line, $matches) !== 1) {
                 continue;
             }
 

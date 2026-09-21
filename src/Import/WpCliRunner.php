@@ -34,10 +34,5 @@ class WpCliRunner
 
             return;
         }
-
-        $output = trim((string) $result);
-        if (str_contains(strtolower($output), 'error')) {
-            throw new \RuntimeException(sprintf('WP-CLI command reported an error for %s: %s', $command, $output));
-        }
     }
 }

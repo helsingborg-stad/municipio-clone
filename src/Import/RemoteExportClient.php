@@ -30,6 +30,8 @@ class RemoteExportClient
             throw new \RuntimeException('Failed to decode export manifest response.');
         }
 
+        $decoded['requested_source_origin'] = $this->origin($sourceUrl);
+
         return $decoded;
     }
 
@@ -38,6 +40,9 @@ class RemoteExportClient
         $downloadUrl = (string) ($manifest['download_url'] ?? '');
         if ($downloadUrl === '') {
             throw new \RuntimeException('Manifest did not include a download URL.');
+        }
+        if (($manifest['requested_source_origin'] ?? '') !== $this->origin($downloadUrl)) {
+            throw new \RuntimeException('Manifest download URL must match the requested source origin.');
         }
 
         $body = $this->request('GET', $downloadUrl);
@@ -111,5 +116,20 @@ class RemoteExportClient
         }
 
         return $statusLine;
+    }
+
+    private function origin(string $url): string
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            return '';
+        }
+
+        $origin = strtolower((string) $parts['scheme']) . '://' . strtolower((string) $parts['host']);
+        if (isset($parts['port'])) {
+            $origin .= ':' . (int) $parts['port'];
+        }
+
+        return $origin;
     }
 }
