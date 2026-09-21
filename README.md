@@ -13,11 +13,11 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 
 ## Configuration
 
-- `MUNICIPIO_CLONE_CACHE_TTL`
-- `MUNICIPIO_CLONE_FORCE_WINDOW`
-- `MUNICIPIO_CLONE_STORAGE_PATH`
-- `MUNICIPIO_CLONE_ENCRYPTION_KEY`
-- `MUNICIPIO_CLONE_PLACEHOLDER_URL`
+- `MUNICIPIO_CLONE_CACHE_TTL` - Cache lifetime for generated export artifacts in seconds. Defaults to `3600` (1 hour).
+- `MUNICIPIO_CLONE_FORCE_WINDOW` - Minimum number of seconds between forced regenerations for the same source site. Defaults to `600` (10 minutes).
+- `MUNICIPIO_CLONE_STORAGE_PATH` - Absolute directory path where encrypted export artifacts are stored. Defaults to a directory outside the web root when `ABSPATH` is available.
+- `MUNICIPIO_CLONE_ENCRYPTION_KEY` - Encryption key used to protect cached export artifacts at rest. If not set, the plugin falls back to `AUTH_KEY`; one of these must be available.
+- `MUNICIPIO_CLONE_PLACEHOLDER_URL` - Neutral placeholder URL written into exported data before import. Defaults to `https://municipio-clone-placeholder.invalid`.
 
 ## Clone usage
 
