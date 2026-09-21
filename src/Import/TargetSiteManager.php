@@ -27,7 +27,11 @@ class TargetSiteManager
         }
 
         $targetParts = wp_parse_url($targetUrl);
-        if ($targetParts === false || !isset($targetParts['host'])) {
+        if (
+            $targetParts === false
+            || !isset($targetParts['host'], $targetParts['scheme'])
+            || !in_array(strtolower((string) $targetParts['scheme']), ['http', 'https'], true)
+        ) {
             throw new \InvalidArgumentException('Target URL must be a valid absolute URL.');
         }
 

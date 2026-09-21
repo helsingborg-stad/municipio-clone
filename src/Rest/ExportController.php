@@ -16,8 +16,6 @@ use WpService\WpService;
  */
 class ExportController
 {
-    private int $authenticatedUserId = 0;
-
     public function __construct(
         private WpService $wpService,
         private ApiKeyAuthenticator $apiKeyAuthenticator,
@@ -51,14 +49,15 @@ class ExportController
             return $result;
         }
 
-        $this->authenticatedUserId = (int) $result['user_id'];
+        $this->storeAuthenticatedUserId($request, (int) $result['user_id']);
 
         return true;
     }
 
     public function handleExport(object $request): \WP_REST_Response|\WP_Error
     {
-        if ($this->authenticatedUserId <= 0) {
+        $authenticatedUserId = $this->getAuthenticatedUserId($request);
+        if ($authenticatedUserId <= 0) {
             return new \WP_Error('municipio_clone_unauthenticated', 'Authentication state was not established before export handling.', ['status' => 401]);
         }
 
@@ -69,7 +68,7 @@ class ExportController
         }
 
         $sourceIdentifier = $this->wpService->getHomeUrl($this->wpService->getCurrentBlogId()) . '#' . $this->wpService->getCurrentBlogId();
-        $export = $this->exportService->create($sourceIdentifier, $force, $this->authenticatedUserId);
+        $export = $this->exportService->create($sourceIdentifier, $force, $authenticatedUserId);
         /** @var ArtifactManifest $manifest */
         $manifest = $export['manifest'];
 
@@ -87,7 +86,7 @@ class ExportController
 
     public function downloadArtifact(object $request): \WP_REST_Response|\WP_Error
     {
-        if ($this->authenticatedUserId <= 0) {
+        if ($this->getAuthenticatedUserId($request) <= 0) {
             return new \WP_Error('municipio_clone_unauthenticated', 'Authentication state was not established before artifact download.', ['status' => 401]);
         }
 
@@ -99,5 +98,25 @@ class ExportController
         return new \WP_REST_Response($this->artifactStorage->retrieveContent($artifactId), 200, [
             'Content-Type' => 'application/sql',
         ]);
+    }
+
+    private function storeAuthenticatedUserId(object $request, int $userId): void
+    {
+        if (method_exists($request, 'set_param')) {
+            $request->set_param('_municipio_clone_user_id', $userId);
+
+            return;
+        }
+
+        $request->_municipio_clone_user_id = $userId;
+    }
+
+    private function getAuthenticatedUserId(object $request): int
+    {
+        if (method_exists($request, 'get_param')) {
+            return (int) $request->get_param('_municipio_clone_user_id');
+        }
+
+        return (int) ($request->_municipio_clone_user_id ?? 0);
     }
 }

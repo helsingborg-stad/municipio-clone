@@ -9,8 +9,12 @@ namespace MunicipioClone\Import;
  */
 class RemoteExportClient
 {
-    public function __construct(private string $apiKey)
+    /**
+     * @param callable|null $transport
+     */
+    public function __construct(private string $apiKey, private $transport = null)
     {
+        $this->transport ??= [$this, 'defaultTransport'];
     }
 
     public function requestExport(string $sourceUrl, bool $force): array
@@ -54,9 +58,25 @@ class RemoteExportClient
 
     private function request(string $method, string $url, ?array $payload = null): string
     {
+        [$body, $responseHeaders] = ($this->transport)($method, $url, $payload, $this->apiKey);
+        $statusLine = $this->findLastStatusLine($responseHeaders);
+        if (preg_match('/\s(\d{3})\s/', $statusLine, $matches) !== 1) {
+            throw new \RuntimeException(sprintf('HTTP response from %s did not include a valid status code.', $url));
+        }
+
+        $statusCode = (int) $matches[1];
+        if ($statusCode < 200 || $statusCode >= 300) {
+            throw new \RuntimeException(sprintf('HTTP request to %s returned status %d.', $url, $statusCode));
+        }
+
+        return $body;
+    }
+
+    private function defaultTransport(string $method, string $url, ?array $payload, string $apiKey): array
+    {
         $headers = [
             'Content-Type: application/json',
-            'X-Municipio-Clone-Key: ' . $this->apiKey,
+            'X-Municipio-Clone-Key: ' . $apiKey,
         ];
         $context = stream_context_create([
             'http' => [
@@ -72,16 +92,21 @@ class RemoteExportClient
             throw new \RuntimeException(sprintf('HTTP request to %s failed.', $url));
         }
 
-        $statusLine = $http_response_header[0] ?? '';
-        if (preg_match('/\\s(\\d{3})\\s/', $statusLine, $matches) !== 1) {
-            throw new \RuntimeException(sprintf('HTTP response from %s did not include a valid status code.', $url));
+        return [$body, $http_response_header ?? []];
+    }
+
+    /**
+     * @param string[] $responseHeaders
+     */
+    private function findLastStatusLine(array $responseHeaders): string
+    {
+        $statusLine = '';
+        foreach ($responseHeaders as $header) {
+            if (str_starts_with($header, 'HTTP/')) {
+                $statusLine = $header;
+            }
         }
 
-        $statusCode = (int) $matches[1];
-        if ($statusCode < 200 || $statusCode >= 300) {
-            throw new \RuntimeException(sprintf('HTTP request to %s returned status %d.', $url, $statusCode));
-        }
-
-        return $body;
+        return $statusLine;
     }
 }

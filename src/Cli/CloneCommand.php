@@ -45,10 +45,10 @@ class CloneCommand
             (string) ($manifest['source_table_prefix'] ?? 'wp_'),
             (string) $targetSite['table_prefix'],
         );
-        $this->databaseImporter->import($artifactPath, $targetUrl);
+        $this->databaseImporter->import($artifactPath, (string) $targetSite['url']);
         $this->logger->info('municipio_clone_import_completed', [
             'source' => $sourceUrl,
-            'target' => $targetUrl,
+            'target' => $targetSite['url'],
             'cache_status' => $manifest['cache_status'] ?? 'unknown',
         ]);
 
