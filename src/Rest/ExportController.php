@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MunicipioClone\Rest;
 
-use MunicipioClone\Authentication\ApiKeyAuthenticator;
+use MunicipioClone\Capability\CapabilityRegistrar;
 use MunicipioClone\Contracts\ArtifactStorageInterface;
 use MunicipioClone\Export\ArtifactManifest;
 use MunicipioClone\Export\ExportService;
@@ -18,7 +18,6 @@ class ExportController
 {
     public function __construct(
         private WpService $wpService,
-        private ApiKeyAuthenticator $apiKeyAuthenticator,
         private ExportService $exportService,
         private ArtifactStorageInterface $artifactStorage,
     ) {
@@ -44,12 +43,16 @@ class ExportController
 
     public function permissionCheck(object $request): bool|\WP_Error
     {
-        $result = $this->apiKeyAuthenticator->authenticate($request);
-        if ($result instanceof \WP_Error) {
-            return $result;
+        $userId = $this->wpService->getCurrentUserId();
+        if ($userId <= 0) {
+            return new \WP_Error('municipio_clone_unauthenticated', 'WordPress authentication is required.', ['status' => 401]);
         }
 
-        $this->storeAuthenticatedUserId($request, (int) $result['user_id']);
+        if (!$this->wpService->currentUserCan(CapabilityRegistrar::CAPABILITY)) {
+            return new \WP_Error('municipio_clone_forbidden', 'The authenticated user does not have export access.', ['status' => 403]);
+        }
+
+        $this->storeAuthenticatedUserId($request, $userId);
 
         return true;
     }

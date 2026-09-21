@@ -69,14 +69,15 @@ if (!class_exists('WP_CLI')) {
             return '';
         }
 
-        public static function confirm(string $message): void
+        public static function confirm(string $message, array $associativeArguments = []): void
         {
-            self::$confirmations[] = $message;
+            self::$confirmations[] = [$message, $associativeArguments];
         }
 
         public static function success(string $message): void
         {
             self::$successMessages[] = $message;
         }
+
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MunicipioClone;
 
-use MunicipioClone\Authentication\ApiKeyAuthenticator;
 use MunicipioClone\Capability\CapabilityRegistrar;
 use MunicipioClone\Cli\CloneCommand;
 use MunicipioClone\Database\WordPressDatabaseConnection;
@@ -59,7 +58,6 @@ class MunicipioClone
         );
         $controller = new ExportController(
             $this->wpService,
-            new ApiKeyAuthenticator($this->wpService),
             $exportService,
             $artifactStorage,
         );
@@ -68,7 +66,7 @@ class MunicipioClone
         if (class_exists('WP_CLI')) {
             $command = new CloneCommand(
                 new TargetEnvironmentGuard(),
-                static fn(string $apiKey): RemoteExportClient => new RemoteExportClient($apiKey),
+                static fn(string $username, string $applicationPassword): RemoteExportClient => new RemoteExportClient($username, $applicationPassword),
                 new TargetSiteManager($this->wpService),
                 new TablePrefixRemapper(),
                 new DatabaseImporter(new WpCliRunner(), Config::placeholderUrl()),

@@ -14,7 +14,7 @@ class RemoteExportClientTest extends TestCase
 {
     public function testRequestExportUsesLastHttpStatusLine(): void
     {
-        $client = new RemoteExportClient('api-key', static fn(string $method, string $url, ?array $payload, string $apiKey): array => [
+        $client = new RemoteExportClient('admin', 'app-password', static fn(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array => [
             '{"artifact_id":"artifact"}',
             ['HTTP/1.1 302 Found', 'Location: https://redirected.example.test', 'HTTP/1.1 200 OK'],
         ]);
@@ -26,7 +26,7 @@ class RemoteExportClientTest extends TestCase
 
     public function testRequestExportThrowsForNonSuccessResponses(): void
     {
-        $client = new RemoteExportClient('api-key', static fn(string $method, string $url, ?array $payload, string $apiKey): array => [
+        $client = new RemoteExportClient('admin', 'app-password', static fn(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array => [
             '{}',
             ['HTTP/1.1 401 Unauthorized'],
         ]);
@@ -37,7 +37,7 @@ class RemoteExportClientTest extends TestCase
 
     public function testDownloadArtifactRejectsMissingDownloadUrl(): void
     {
-        $client = new RemoteExportClient('api-key', static fn(string $method, string $url, ?array $payload, string $apiKey): array => [
+        $client = new RemoteExportClient('admin', 'app-password', static fn(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array => [
             '',
             ['HTTP/1.1 200 OK'],
         ]);
@@ -48,7 +48,7 @@ class RemoteExportClientTest extends TestCase
 
     public function testDownloadArtifactRejectsCrossOriginDownloadUrl(): void
     {
-        $client = new RemoteExportClient('api-key', static fn(string $method, string $url, ?array $payload, string $apiKey): array => [
+        $client = new RemoteExportClient('admin', 'app-password', static fn(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array => [
             'payload',
             ['HTTP/1.1 200 OK'],
         ]);

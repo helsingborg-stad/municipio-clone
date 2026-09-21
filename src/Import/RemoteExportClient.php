@@ -12,7 +12,11 @@ class RemoteExportClient
     /**
      * @param callable|null $transport
      */
-    public function __construct(private string $apiKey, private $transport = null)
+    public function __construct(
+        private string $username,
+        private string $applicationPassword,
+        private $transport = null,
+    )
     {
         $this->transport ??= [$this, 'defaultTransport'];
     }
@@ -67,7 +71,7 @@ class RemoteExportClient
 
     private function request(string $method, string $url, ?array $payload = null): string
     {
-        [$body, $responseHeaders] = ($this->transport)($method, $url, $payload, $this->apiKey);
+        [$body, $responseHeaders] = ($this->transport)($method, $url, $payload, $this->username, $this->applicationPassword);
         $statusLine = $this->findLastStatusLine($responseHeaders);
         if (preg_match('/\s(\d{3})\s/', $statusLine, $matches) !== 1) {
             throw new \RuntimeException(sprintf('HTTP response from %s did not include a valid status code.', $url));
@@ -81,11 +85,11 @@ class RemoteExportClient
         return $body;
     }
 
-    private function defaultTransport(string $method, string $url, ?array $payload, string $apiKey): array
+    private function defaultTransport(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array
     {
         $headers = [
             'Content-Type: application/json',
-            'X-Municipio-Clone-Key: ' . $apiKey,
+            'Authorization: Basic ' . base64_encode($username . ':' . $applicationPassword),
         ];
         $context = stream_context_create([
             'http' => [

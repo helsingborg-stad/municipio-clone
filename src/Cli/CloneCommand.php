@@ -17,7 +17,7 @@ use MunicipioClone\Import\TargetSiteManager;
 class CloneCommand
 {
     /**
-     * @param callable(string):RemoteExportClient $remoteExportClientFactory
+    * @param callable(string, string):RemoteExportClient $remoteExportClientFactory
      */
     public function __construct(
         private TargetEnvironmentGuard $environmentGuard,
@@ -31,18 +31,19 @@ class CloneCommand
 
     public function handle(array $arguments, array $associativeArguments): void
     {
-        $sourceUrl = (string) ($associativeArguments['url'] ?? '');
+        $sourceUrl = (string) ($associativeArguments['source-url'] ?? '');
         $targetUrl = (string) ($associativeArguments['target'] ?? '');
-        $apiKey = (string) ($associativeArguments['api-key'] ?? '');
-        if ($sourceUrl === '' || $targetUrl === '' || $apiKey === '') {
-            throw new \InvalidArgumentException('The --url, --target, and --api-key arguments are required.');
+        $username = (string) ($associativeArguments['username'] ?? '');
+        $applicationPassword = (string) ($associativeArguments['application-password'] ?? $associativeArguments['password'] ?? '');
+        if ($sourceUrl === '' || $targetUrl === '' || $username === '' || $applicationPassword === '') {
+            throw new \InvalidArgumentException('The --source-url, --target, --username, and --application-password arguments are required.');
         }
 
         $force = array_key_exists('force', $associativeArguments) && (string) $associativeArguments['force'] !== 'false';
 
         $this->environmentGuard->assertSafe();
-        $targetSite = $this->targetSiteManager->prepare($targetUrl);
-        $remoteExportClient = ($this->remoteExportClientFactory)($apiKey);
+        $targetSite = $this->targetSiteManager->prepare($targetUrl, $associativeArguments);
+        $remoteExportClient = ($this->remoteExportClientFactory)($username, $applicationPassword);
         $manifest = $remoteExportClient->requestExport($sourceUrl, $force);
         $artifactPath = $remoteExportClient->downloadArtifact($manifest);
         $artifactPath = $this->tablePrefixRemapper->remapFile(

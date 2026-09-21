@@ -22,7 +22,7 @@ class CloneCommandTest extends TestCase
     {
         $command = new CloneCommand(
             $this->createMock(TargetEnvironmentGuard::class),
-            static fn(string $apiKey): RemoteExportClient => throw new \RuntimeException('should not build client'),
+            static fn(string $username, string $applicationPassword): RemoteExportClient => throw new \RuntimeException('should not build client'),
             $this->createMock(TargetSiteManager::class),
             $this->createMock(TablePrefixRemapper::class),
             $this->createMock(DatabaseImporter::class),
@@ -46,14 +46,14 @@ class CloneCommandTest extends TestCase
         $property->setValue($command, $guard);
 
         $this->expectException(\RuntimeException::class);
-        $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test', 'api-key' => 'api-key']);
+        $command->handle([], ['source-url' => 'https://source.example.test', 'target' => 'https://target.example.test', 'username' => 'admin', 'application-password' => 'app-password']);
     }
 
     public function testHandleRequiresApiKey(): void
     {
         $command = new CloneCommand(
             new TargetEnvironmentGuard(),
-            static fn(string $apiKey): RemoteExportClient => $this->createMock(RemoteExportClient::class),
+            static fn(string $username, string $applicationPassword): RemoteExportClient => $this->createMock(RemoteExportClient::class),
             $this->createMock(TargetSiteManager::class),
             $this->createMock(TablePrefixRemapper::class),
             $this->createMock(DatabaseImporter::class),
@@ -65,7 +65,7 @@ class CloneCommandTest extends TestCase
         );
 
         $this->expectException(\InvalidArgumentException::class);
-        $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test']);
+        $command->handle([], ['source-url' => 'https://source.example.test', 'target' => 'https://target.example.test']);
     }
 
     public function testHandleDownloadsRemapsAndImportsArtifact(): void
@@ -93,11 +93,20 @@ SQL),
         $client->method('downloadArtifact')->willReturn($artifactPath);
 
         $siteManager = $this->createMock(TargetSiteManager::class);
-        $siteManager->method('prepare')->willReturn([
-            'url' => 'https://target.example.test/site',
-            'blog_id' => 3,
-            'table_prefix' => 'wp_3_',
-        ]);
+        $siteManager->expects($this->once())
+            ->method('prepare')
+            ->with('https://target.example.test/site', [
+                'source-url' => 'https://source.example.test',
+                'target' => 'https://target.example.test/site',
+                'username' => 'admin',
+                'application-password' => 'app-password',
+                'yes' => true,
+            ])
+            ->willReturn([
+                'url' => 'https://target.example.test/site',
+                'blog_id' => 3,
+                'table_prefix' => 'wp_3_',
+            ]);
 
         $importer = $this->createMock(DatabaseImporter::class);
         $importer->expects($this->once())
@@ -106,7 +115,7 @@ SQL),
 
         $command = new CloneCommand(
             new TargetEnvironmentGuard(),
-            static fn(string $apiKey): RemoteExportClient => $client,
+            static fn(string $username, string $applicationPassword): RemoteExportClient => $client,
             $siteManager,
             new TablePrefixRemapper(),
             $importer,
@@ -118,7 +127,7 @@ SQL),
         );
 
         try {
-            $command->handle([], ['url' => 'https://source.example.test', 'target' => 'https://target.example.test/site', 'api-key' => 'api-key']);
+            $command->handle([], ['source-url' => 'https://source.example.test', 'target' => 'https://target.example.test/site', 'username' => 'admin', 'application-password' => 'app-password', 'yes' => true]);
         } finally {
             putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
         }
