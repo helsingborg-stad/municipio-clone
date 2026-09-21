@@ -1,0 +1,23 @@
+{
+  "name": "helsingborg-stad/municipio-clone",
+  "description": "WordPress plugin that enables WP-CLI command for cloning remote WordPress sites.",
+  "type": "wordpress-plugin",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "MunicipioClone\\": "src/",
+      "WpService\\": "src/WpService/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "MunicipioClone\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit --configuration phpunit.xml --testdox"
+  }
+}
