@@ -27,7 +27,7 @@ Use a WordPress Application Password belonging to a user with the `municipio_clo
 wp municipio clone \
   --source-url=https://source.example.se/site-a \
   --target=https://local.example.test/site-b \
-  --username=thbr1001 \
+  --username=<username> \
   --application-password=<application-password> \
   --force
 ```
