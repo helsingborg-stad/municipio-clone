@@ -19,6 +19,7 @@ class MutableWpService extends FakeWpService
     public array $users = [];
     public array $userMeta = [];
     public array $sites = [];
+    public array $options = [];
     public bool $multisite = false;
     public int $currentBlogId = 1;
     public string $homeUrl = 'https://source.example.test';
@@ -95,6 +96,23 @@ class MutableWpService extends FakeWpService
         $this->sites[] = $site;
 
         return $id;
+    }
+
+    public function wpUpdateSite(int $siteId, array $data): int|\WP_Error
+    {
+        foreach ($this->sites as $site) {
+            if ((int) ($site->blog_id ?? 0) !== $siteId) {
+                continue;
+            }
+
+            foreach ($data as $key => $value) {
+                $site->{$key} = $value;
+            }
+
+            return $siteId;
+        }
+
+        return new \WP_Error('site_not_found', 'Site not found.');
     }
 
     public function getSites(string|array $args = []): array|int
@@ -179,6 +197,18 @@ class MutableWpService extends FakeWpService
         $this->currentBlogId = 1;
 
         return true;
+    }
+
+    public function updateOption(string $option, mixed $value, bool|null $autoload = null): bool
+    {
+        $this->options[$this->currentBlogId][$option] = $value;
+
+        return true;
+    }
+
+    public function getOption(string $option, mixed $defaultValue = false): mixed
+    {
+        return $this->options[$this->currentBlogId][$option] ?? $defaultValue;
     }
 
     public function getUsers(array $args = []): array

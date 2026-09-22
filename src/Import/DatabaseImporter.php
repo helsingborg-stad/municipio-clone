@@ -4,19 +4,31 @@ declare(strict_types=1);
 
 namespace MunicipioClone\Import;
 
+use WpService\WpService;
+
 /**
  * Imports SQL artifacts and restores the target URL placeholder.
  */
 class DatabaseImporter
 {
-    public function __construct(private WpCliRunner $wpCliRunner, private string $placeholderUrl)
+    public function __construct(
+        private WpCliRunner $wpCliRunner,
+        private string $placeholderUrl,
+        private WpService $wpService,
+    )
     {
     }
 
     /**
      * @param null|callable(string, string, callable): mixed $stageRunner
      */
-    public function import(string $artifactPath, string $targetUrl, ?callable $stageRunner = null): void
+    public function import(
+        string $artifactPath,
+        string $targetUrl,
+        int $targetBlogId,
+        string $targetTablePrefix,
+        ?callable $stageRunner = null,
+    ): void
     {
         $this->runStage(
             $stageRunner,
@@ -29,18 +41,24 @@ class DatabaseImporter
             'table_discovery',
             'Discovering imported database tables',
             fn(): string => $this->wpCliRunner->run(sprintf(
-                'db tables --all-tables-with-prefix --format=csv --url=%s',
-                escapeshellarg($targetUrl),
+                'db query %s --skip-column-names',
+                escapeshellarg(sprintf(
+                    "SHOW TABLES LIKE '%s'",
+                    addcslashes($targetTablePrefix, "\\_%'") . '%',
+                )),
             )),
         );
-        $tables = array_values(array_filter(array_map('trim', explode(',', str_replace("\n", ',', $tablesOutput)))));
+        $tables = array_values(array_filter(array_map('trim', explode("\n", $tablesOutput))));
+        if ($tables === []) {
+            throw new \RuntimeException(sprintf('No imported tables were found with prefix "%s".', $targetTablePrefix));
+        }
         $tableArguments = $tables !== [] ? ' ' . implode(' ', array_map('escapeshellarg', $tables)) : '';
         $this->runStage(
             $stageRunner,
             'url_replacement',
             'Replacing source URLs in imported data',
             fn(): string => $this->wpCliRunner->run(sprintf(
-                'search-replace %s %s%s --precise --skip-columns=guid --url=%s',
+                'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --url=%s',
                 escapeshellarg($this->placeholderUrl),
                 escapeshellarg($targetUrl),
                 $tableArguments,
@@ -51,36 +69,32 @@ class DatabaseImporter
             $stageRunner,
             'site_url_normalization',
             'Normalizing target home and site URLs',
-            fn(): null => $this->normalizeSiteUrls($targetUrl),
+            fn(): null => $this->normalizeSiteUrls($targetBlogId, $targetUrl),
         );
     }
 
-    private function normalizeSiteUrls(string $targetUrl): null
+    private function normalizeSiteUrls(int $targetBlogId, string $targetUrl): null
     {
         $normalizedTargetUrl = rtrim($targetUrl, '/');
-        foreach (['home', 'siteurl'] as $optionName) {
-            $this->wpCliRunner->run(sprintf(
-                'option update %s %s --url=%s',
-                escapeshellarg($optionName),
-                escapeshellarg($normalizedTargetUrl),
-                escapeshellarg($targetUrl),
-            ));
-        }
-
-        foreach (['home', 'siteurl'] as $optionName) {
-            $actualUrl = rtrim($this->wpCliRunner->run(sprintf(
-                'option get %s --url=%s',
-                escapeshellarg($optionName),
-                escapeshellarg($targetUrl),
-            )), '/');
-            if ($actualUrl !== $normalizedTargetUrl) {
-                throw new \RuntimeException(sprintf(
-                    'Target option "%s" resolved to "%s" instead of "%s". Check WP_HOME, WP_SITEURL, and URL filters.',
-                    $optionName,
-                    $actualUrl,
-                    $normalizedTargetUrl,
-                ));
+        $this->wpService->switchToBlog($targetBlogId);
+        try {
+            foreach (['home', 'siteurl'] as $optionName) {
+                $this->wpService->updateOption($optionName, $normalizedTargetUrl);
             }
+
+            foreach (['home', 'siteurl'] as $optionName) {
+                $actualUrl = rtrim((string) $this->wpService->getOption($optionName), '/');
+                if ($actualUrl !== $normalizedTargetUrl) {
+                    throw new \RuntimeException(sprintf(
+                        'Target option "%s" resolved to "%s" instead of "%s". Check WP_HOME, WP_SITEURL, and URL filters.',
+                        $optionName,
+                        $actualUrl,
+                        $normalizedTargetUrl,
+                    ));
+                }
+            }
+        } finally {
+            $this->wpService->restoreCurrentBlog();
         }
 
         return null;

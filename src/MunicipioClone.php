@@ -69,7 +69,7 @@ class MunicipioClone
                 static fn(string $username, string $applicationPassword): RemoteExportClient => new RemoteExportClient($username, $applicationPassword),
                 new TargetSiteManager($this->wpService),
                 new TablePrefixRemapper(),
-                new DatabaseImporter(new WpCliRunner(), Config::placeholderUrl()),
+                new DatabaseImporter(new WpCliRunner(), Config::placeholderUrl(), $this->wpService),
                 $logger,
             );
             \WP_CLI::add_command('municipio clone', [$command, 'handle']);

@@ -122,9 +122,11 @@ SQL),
                         && str_contains($content, "'wp_7_posts'");
                 }),
                 'https://target.example.test/site',
+                3,
+                'wp_3_',
                 $this->isCallable(),
             )
-            ->willReturnCallback(static function (string $path, string $targetUrl, callable $stageRunner): void {
+            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner): void {
                 $stageRunner('database_import', 'Importing SQL into the target database', static fn(): null => null);
                 $stageRunner('table_discovery', 'Discovering imported database tables', static fn(): null => null);
                 $stageRunner('url_replacement', 'Replacing source URLs in imported data', static fn(): null => null);

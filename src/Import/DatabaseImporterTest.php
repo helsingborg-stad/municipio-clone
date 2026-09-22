@@ -6,6 +6,7 @@ namespace MunicipioClone\Tests\Import;
 
 use MunicipioClone\Import\DatabaseImporter;
 use MunicipioClone\Import\WpCliRunner;
+use MunicipioClone\Tests\TestDoubles\MutableWpService;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,14 +23,8 @@ class DatabaseImporterTest extends TestCase
             {
                 $this->commands[] = $command;
 
-                if (str_starts_with($command, 'db tables')) {
-                    return "wp_posts\nwp_options";
-                }
-                if (str_starts_with($command, "option get 'home'")) {
-                    return 'http://localhost:8080/hbgtest';
-                }
-                if (str_starts_with($command, "option get 'siteurl'")) {
-                    return 'http://localhost:8080/hbgtest';
+                if (str_starts_with($command, 'db query')) {
+                    return "mun_3_posts\nmun_3_options";
                 }
 
                 return '';
@@ -42,9 +37,12 @@ class DatabaseImporterTest extends TestCase
             return $operation();
         };
 
-        (new DatabaseImporter($runner, 'https://clone.invalid'))->import(
+        $wpService = new MutableWpService();
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
+            3,
+            'mun_3_',
             $stageRunner,
         );
 
@@ -54,15 +52,14 @@ class DatabaseImporterTest extends TestCase
             ['url_replacement', 'Replacing source URLs in imported data'],
             ['site_url_normalization', 'Normalizing target home and site URLs'],
         ], $stages);
-        $this->assertContains(
-            "option update 'home' 'http://localhost:8080/hbgtest' --url='http://localhost:8080/hbgtest/'",
-            $runner->commands,
-        );
-        $this->assertContains(
-            "option update 'siteurl' 'http://localhost:8080/hbgtest' --url='http://localhost:8080/hbgtest/'",
-            $runner->commands,
-        );
-        $this->assertCount(7, $runner->commands);
+        $this->assertStringContainsString('SHOW TABLES LIKE', $runner->commands[1]);
+        $this->assertStringContainsString('mun\\_3\\_%', $runner->commands[1]);
+        $this->assertStringContainsString("'mun_3_posts' 'mun_3_options'", $runner->commands[2]);
+        $this->assertStringContainsString('--all-tables-with-prefix', $runner->commands[2]);
+        $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['home']);
+        $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['siteurl']);
+        $this->assertSame(1, $wpService->currentBlogId);
+        $this->assertCount(3, $runner->commands);
     }
 
     public function testFailsWhenWordPressOverridesTheTargetSiteUrl(): void
@@ -70,17 +67,17 @@ class DatabaseImporterTest extends TestCase
         $runner = new class() extends WpCliRunner {
             public function run(string $command): string
             {
-                if (str_starts_with($command, 'db tables')) {
-                    return 'wp_options';
-                }
-                if (str_starts_with($command, "option get 'home'")) {
-                    return 'http://localhost:8080/hbgtest';
-                }
-                if (str_starts_with($command, "option get 'siteurl'")) {
+                return str_starts_with($command, 'db query') ? 'mun_3_options' : '';
+            }
+        };
+        $wpService = new class() extends MutableWpService {
+            public function getOption(string $option, mixed $defaultValue = false): mixed
+            {
+                if ($option === 'siteurl') {
                     return 'https://localhost/hbgtest/';
                 }
 
-                return '';
+                return parent::getOption($option, $defaultValue);
             }
         };
 
@@ -89,9 +86,11 @@ class DatabaseImporterTest extends TestCase
             'Target option "siteurl" resolved to "https://localhost/hbgtest" instead of "http://localhost:8080/hbgtest". Check WP_HOME, WP_SITEURL, and URL filters.',
         );
 
-        (new DatabaseImporter($runner, 'https://clone.invalid'))->import(
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
+            3,
+            'mun_3_',
         );
     }
 }

@@ -86,6 +86,8 @@ class CloneCommand
                 $this->databaseImporter->import(
                     $artifactPath,
                     (string) $targetSite['url'],
+                    (int) $targetSite['blog_id'],
+                    (string) $targetSite['table_prefix'],
                     fn(string $stage, string $label, callable $operation): mixed => $this->runStage($stage, $label, $operation),
                 );
             } finally {

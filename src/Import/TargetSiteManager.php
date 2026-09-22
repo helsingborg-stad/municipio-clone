@@ -36,6 +36,9 @@ class TargetSiteManager
         }
 
         $domain = (string) ($targetParts['host'] ?? '');
+        if (isset($targetParts['port'])) {
+            $domain .= ':' . (int) $targetParts['port'];
+        }
         $path = (string) ($targetParts['path'] ?? '/');
         if ($path === '') {
             $path = '/';
@@ -58,6 +61,33 @@ class TargetSiteManager
                     'table_prefix' => $this->getBlogPrefix((int) ($site->blog_id ?? $blogId)),
                 ];
             }
+        }
+
+        $hostWithoutPort = (string) ($targetParts['host'] ?? '');
+        foreach ((array) $this->wpService->getSites(['path' => $path]) as $site) {
+            if ((string) ($site->domain ?? '') !== $hostWithoutPort || (string) ($site->path ?? '/') !== $path) {
+                continue;
+            }
+
+            if (class_exists('WP_CLI')) {
+                \WP_CLI::confirm(sprintf('Update and overwrite existing target subsite %s?', $targetUrl), $associativeArguments);
+            }
+
+            $siteId = (int) ($site->blog_id ?? $blogId);
+            $updateResult = $this->wpService->wpUpdateSite($siteId, [
+                'domain' => $domain,
+                'path' => $path,
+                'scheme' => strtolower((string) $targetParts['scheme']),
+            ]);
+            if ($updateResult instanceof \WP_Error) {
+                throw new \RuntimeException((string) $updateResult->get_error_message());
+            }
+
+            return [
+                'url' => $targetUrl,
+                'blog_id' => $siteId,
+                'table_prefix' => $this->getBlogPrefix($siteId),
+            ];
         }
 
         $createdBlogId = $this->wpService->wpInsertSite([
