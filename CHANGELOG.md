@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.3...v1.2.4) (2026-09-22)
+
+
+### Bug Fixes
+
+* **import:** target the selected multisite blog ([72abe7e](https://github.com/helsingborg-stad/municipio-clone/commit/72abe7e3a96f973a6f4ec25f97dbabb6855a5e1f))
+
 ## [1.2.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.2...v1.2.3) (2026-09-22)
 
 
