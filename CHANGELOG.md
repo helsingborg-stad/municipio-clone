@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.5](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.4...v1.1.5) (2026-09-22)
+
+
+### Bug Fixes
+
+* **export:** stream artifact encryption to avoid memory exhaustion ([13c68f6](https://github.com/helsingborg-stad/municipio-clone/commit/13c68f69e0a6519c16728af3d94e3301c68b3dea))
+
 ## [1.1.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.3...v1.1.4) (2026-09-22)
 
 
