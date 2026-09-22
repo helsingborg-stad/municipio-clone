@@ -1,0 +1,97 @@
+services:
+  source-db:
+    image: mariadb:11.8
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - source-db:/var/lib/mysql
+
+  target-db:
+    image: mariadb:11.8
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - target-db:/var/lib/mysql
+
+  source-wordpress:
+    image: wordpress:php8.3-apache
+    depends_on:
+      - source-db
+    environment:
+      WORDPRESS_DB_HOST: source-db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WP_ENVIRONMENT_TYPE: local
+      MUNICIPIO_CLONE_ENCRYPTION_KEY: municipio-clone-e2e-key-1234567890
+      MUNICIPIO_CLONE_FORCE_WINDOW: "0"
+      MUNICIPIO_CLONE_STORAGE_PATH: /tmp/municipio-clone
+    ports:
+      - "8081:80"
+    volumes:
+      - source-wordpress:/var/www/html
+      - ./:/var/www/html/wp-content/plugins/municipio-clone
+
+  target-wordpress:
+    image: wordpress:php8.3-apache
+    depends_on:
+      - target-db
+    environment:
+      WORDPRESS_DB_HOST: target-db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WP_ENVIRONMENT_TYPE: local
+      MUNICIPIO_CLONE_ENCRYPTION_KEY: municipio-clone-e2e-key-1234567890
+      MUNICIPIO_CLONE_STORAGE_PATH: /tmp/municipio-clone
+    ports:
+      - "8082:80"
+    volumes:
+      - target-wordpress:/var/www/html
+      - ./:/var/www/html/wp-content/plugins/municipio-clone
+
+  e2e-runner:
+    build:
+      context: .
+      dockerfile: e2e/Dockerfile
+    depends_on:
+      - source-wordpress
+      - target-wordpress
+    environment:
+      WP_CLI_ALLOW_ROOT: "1"
+      WP_ADMIN_USER: admin
+      WP_ADMIN_PASSWORD: password
+      WP_ADMIN_EMAIL: admin@example.com
+      WP_SOURCE_PATH: /srv/source
+      WP_TARGET_PATH: /srv/target
+      SOURCE_URL: http://source-wordpress
+      TARGET_URL: http://target-wordpress
+      MUNICIPIO_CLONE_ENCRYPTION_KEY: municipio-clone-e2e-key-1234567890
+      MUNICIPIO_CLONE_STORAGE_PATH: /tmp/municipio-clone
+    user: "0:0"
+    volumes:
+      - source-wordpress:/srv/source
+      - target-wordpress:/srv/target
+      - ./:/srv/source/wp-content/plugins/municipio-clone
+      - ./:/srv/target/wp-content/plugins/municipio-clone
+    command:
+      - /bin/sh
+      - /usr/local/bin/run-e2e.sh
+
+volumes:
+  source-db:
+  target-db:
+  source-wordpress:
+  target-wordpress:

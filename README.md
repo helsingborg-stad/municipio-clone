@@ -38,3 +38,24 @@ wp municipio clone \
 composer dump-autoload
 phpunit --configuration phpunit.xml
 ```
+
+### End-to-end testing
+
+Install the plugin dependencies once from the repository root:
+
+```bash
+composer install
+```
+
+Then run the Docker Compose smoke test:
+
+```bash
+./e2e/run.sh
+```
+
+This starts two local WordPress services:
+
+- source site at `http://localhost:8081`
+- target site at `http://localhost:8082`
+
+The smoke test installs both sites, activates the plugin, creates source content, runs `wp municipio clone`, and verifies that the target site received the cloned content.
