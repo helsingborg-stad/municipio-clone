@@ -53,6 +53,8 @@ Then run the Docker Compose smoke test:
 ./e2e/run.sh
 ```
 
+The runner script generates a temporary encryption key automatically when `MUNICIPIO_CLONE_E2E_ENCRYPTION_KEY` is not already set in your shell.
+
 This starts two local WordPress services:
 
 - source site at `http://localhost:8081`

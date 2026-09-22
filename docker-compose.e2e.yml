@@ -9,6 +9,14 @@ services:
       MARIADB_USER: wordpress
       MARIADB_PASSWORD: wordpress
       MARIADB_ROOT_PASSWORD: root
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'MYSQL_PWD="$$MARIADB_ROOT_PASSWORD" mariadb-admin ping -h 127.0.0.1 -uroot --silent'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     volumes:
       - source-db:/var/lib/mysql
 
@@ -22,22 +30,41 @@ services:
       MARIADB_USER: wordpress
       MARIADB_PASSWORD: wordpress
       MARIADB_ROOT_PASSWORD: root
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'MYSQL_PWD="$$MARIADB_ROOT_PASSWORD" mariadb-admin ping -h 127.0.0.1 -uroot --silent'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     volumes:
       - target-db:/var/lib/mysql
 
   source-wordpress:
     image: wordpress:php8.3-apache
     depends_on:
-      - source-db
+      source-db:
+        condition: service_healthy
     environment:
       WORDPRESS_DB_HOST: source-db:3306
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
       WP_ENVIRONMENT_TYPE: local
-      MUNICIPIO_CLONE_ENCRYPTION_KEY: municipio-clone-e2e-key-1234567890
+      MUNICIPIO_CLONE_ENCRYPTION_KEY: ${MUNICIPIO_CLONE_E2E_ENCRYPTION_KEY}
       MUNICIPIO_CLONE_FORCE_WINDOW: "0"
       MUNICIPIO_CLONE_STORAGE_PATH: /tmp/municipio-clone
+    healthcheck:
+      test:
+        - CMD
+        - php
+        - -r
+        - 'exit(@file_get_contents("http://127.0.0.1/wp-login.php") === false ? 1 : 0);'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     ports:
       - "8081:80"
     volumes:
@@ -47,15 +74,26 @@ services:
   target-wordpress:
     image: wordpress:php8.3-apache
     depends_on:
-      - target-db
+      target-db:
+        condition: service_healthy
     environment:
       WORDPRESS_DB_HOST: target-db:3306
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
       WP_ENVIRONMENT_TYPE: local
-      MUNICIPIO_CLONE_ENCRYPTION_KEY: municipio-clone-e2e-key-1234567890
+      MUNICIPIO_CLONE_ENCRYPTION_KEY: ${MUNICIPIO_CLONE_E2E_ENCRYPTION_KEY}
       MUNICIPIO_CLONE_STORAGE_PATH: /tmp/municipio-clone
+    healthcheck:
+      test:
+        - CMD
+        - php
+        - -r
+        - 'exit(@file_get_contents("http://127.0.0.1/wp-login.php") === false ? 1 : 0);'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     ports:
       - "8082:80"
     volumes:
@@ -67,8 +105,10 @@ services:
       context: .
       dockerfile: e2e/Dockerfile
     depends_on:
-      - source-wordpress
-      - target-wordpress
+      source-wordpress:
+        condition: service_healthy
+      target-wordpress:
+        condition: service_healthy
     environment:
       WP_CLI_ALLOW_ROOT: "1"
       WP_ADMIN_USER: admin
@@ -78,7 +118,7 @@ services:
       WP_TARGET_PATH: /srv/target
       SOURCE_URL: http://source-wordpress
       TARGET_URL: http://target-wordpress
-      MUNICIPIO_CLONE_ENCRYPTION_KEY: municipio-clone-e2e-key-1234567890
+      MUNICIPIO_CLONE_ENCRYPTION_KEY: ${MUNICIPIO_CLONE_E2E_ENCRYPTION_KEY}
       MUNICIPIO_CLONE_STORAGE_PATH: /tmp/municipio-clone
     user: "0:0"
     volumes:
