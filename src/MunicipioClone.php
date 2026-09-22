@@ -91,7 +91,7 @@ class MunicipioClone
                 new TargetLockManager($this->wpService, Config::targetLockTtl()),
                 $logger,
             );
-            \WP_CLI::add_command('municipio clone batch', [$batchCommand, 'handle']);
+            \WP_CLI::add_command('municipio clone-batch', [$batchCommand, 'handle']);
         }
     }
 }

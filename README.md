@@ -5,7 +5,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 ## Features
 
 - `wp municipio clone --source-url=<source> --target=<target> --username=<username> --application-password=<password> [--force] [--keep-remote-media-urls]`
-- `wp municipio clone batch --config=<path>` for synchronizing several configured source-to-target mappings
+- `wp municipio clone-batch --config=<path>` for synchronizing several configured source-to-target mappings
 - REST export endpoint at `/wp-json/municipio-clone/v1/export`
 - WordPress Application Password authentication with the `municipio_clone_export` capability
 - Encrypted artifact cache with configurable TTL
@@ -48,7 +48,7 @@ Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-c
 
 ## Batch cloning
 
-Use `wp municipio clone batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially. A failed mapping is reported and does not stop remaining mappings; the command exits with an error after all mappings have been attempted.
+Use `wp municipio clone-batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially. A failed mapping is reported and does not stop remaining mappings; the command exits with an error after all mappings have been attempted.
 
 Store only URLs, flags, and environment-variable names in the JSON configuration. Do not put usernames or application passwords in the file.
 
@@ -76,7 +76,7 @@ Store only URLs, flags, and environment-variable names in the JSON configuration
 Export the named variables in the process environment, then run the command from an external scheduler such as system cron, a CI job, or the deployment platform scheduler:
 
 ```bash
-wp municipio clone batch --config=/etc/municipio-clone/sites.json
+wp municipio clone-batch --config=/etc/municipio-clone/sites.json
 ```
 
 Each target is protected by an atomic WordPress option lock for the duration of its import. A second batch attempting to synchronize the same target fails that mapping instead of importing concurrently. Maintain a database backup of each target before scheduled imports; batch cloning does not create an automatic rollback snapshot.
