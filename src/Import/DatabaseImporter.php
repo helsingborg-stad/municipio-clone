@@ -47,6 +47,43 @@ class DatabaseImporter
                 escapeshellarg($targetUrl),
             )),
         );
+        $this->runStage(
+            $stageRunner,
+            'site_url_normalization',
+            'Normalizing target home and site URLs',
+            fn(): null => $this->normalizeSiteUrls($targetUrl),
+        );
+    }
+
+    private function normalizeSiteUrls(string $targetUrl): null
+    {
+        $normalizedTargetUrl = rtrim($targetUrl, '/');
+        foreach (['home', 'siteurl'] as $optionName) {
+            $this->wpCliRunner->run(sprintf(
+                'option update %s %s --url=%s',
+                escapeshellarg($optionName),
+                escapeshellarg($normalizedTargetUrl),
+                escapeshellarg($targetUrl),
+            ));
+        }
+
+        foreach (['home', 'siteurl'] as $optionName) {
+            $actualUrl = rtrim($this->wpCliRunner->run(sprintf(
+                'option get %s --url=%s',
+                escapeshellarg($optionName),
+                escapeshellarg($targetUrl),
+            )), '/');
+            if ($actualUrl !== $normalizedTargetUrl) {
+                throw new \RuntimeException(sprintf(
+                    'Target option "%s" resolved to "%s" instead of "%s". Check WP_HOME, WP_SITEURL, and URL filters.',
+                    $optionName,
+                    $actualUrl,
+                    $normalizedTargetUrl,
+                ));
+            }
+        }
+
+        return null;
     }
 
     private function runStage(?callable $stageRunner, string $stage, string $label, callable $operation): mixed

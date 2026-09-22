@@ -128,6 +128,7 @@ SQL),
                 $stageRunner('database_import', 'Importing SQL into the target database', static fn(): null => null);
                 $stageRunner('table_discovery', 'Discovering imported database tables', static fn(): null => null);
                 $stageRunner('url_replacement', 'Replacing source URLs in imported data', static fn(): null => null);
+                $stageRunner('site_url_normalization', 'Normalizing target home and site URLs', static fn(): null => null);
             });
 
         $command = new CloneCommand(
@@ -159,6 +160,7 @@ SQL),
             '[municipio-clone] Starting: Importing SQL into the target database',
             '[municipio-clone] Starting: Discovering imported database tables',
             '[municipio-clone] Starting: Replacing source URLs in imported data',
+            '[municipio-clone] Starting: Normalizing target home and site URLs',
         ], array_values(array_filter(
             \WP_CLI::$logMessages,
             static fn(string $message): bool => str_contains($message, 'Starting:'),
