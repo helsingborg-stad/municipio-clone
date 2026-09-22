@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.6...v1.3.0) (2026-09-22)
+
+
+### Features
+
+* **cli:** keep remote media urls ([5327820](https://github.com/helsingborg-stad/municipio-clone/commit/53278205963a616aa2dbd9cf19fb6954cb6a62a8))
+
 ## [1.2.6](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.5...v1.2.6) (2026-09-22)
 
 
