@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.3...v1.1.4) (2026-09-22)
+
+
+### Bug Fixes
+
+* **export:** stream SQL export generation to avoid memory exhaustion ([8618d8d](https://github.com/helsingborg-stad/municipio-clone/commit/8618d8db7863b769587b4870ec046d9868a9ecf2))
+
 ## [1.1.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.2...v1.1.3) (2026-09-21)
 
 
