@@ -46,6 +46,8 @@ class CloneCommand
         }
 
         $force = array_key_exists('force', $associativeArguments) && (string) $associativeArguments['force'] !== 'false';
+        $keepRemoteMediaUrls = array_key_exists('keep-remote-media-urls', $associativeArguments)
+            && (string) $associativeArguments['keep-remote-media-urls'] !== 'false';
 
         $this->commandCompleted = false;
         $this->fatalErrorMemoryReserve = str_repeat(' ', 256 * 1024);
@@ -89,6 +91,8 @@ class CloneCommand
                     (int) $targetSite['blog_id'],
                     (string) $targetSite['table_prefix'],
                     fn(string $stage, string $label, callable $operation): mixed => $this->runStage($stage, $label, $operation),
+                    $sourceUrl,
+                    $keepRemoteMediaUrls,
                 );
             } finally {
                 @unlink($artifactPath);

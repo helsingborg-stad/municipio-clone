@@ -4,7 +4,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 
 ## Features
 
-- `wp municipio clone --source-url=<source> --target=<target> --username=<username> --application-password=<password> [--force]`
+- `wp municipio clone --source-url=<source> --target=<target> --username=<username> --application-password=<password> [--force] [--keep-remote-media-urls]`
 - REST export endpoint at `/wp-json/municipio-clone/v1/export`
 - WordPress Application Password authentication with the `municipio_clone_export` capability
 - Encrypted artifact cache with configurable TTL
@@ -41,6 +41,8 @@ wp municipio clone \
 3. The source generates a SQL export, applies the configured washer rules to mask supported personal and form data, and replaces source URLs with the neutral placeholder URL. The encrypted artifact is cached until its TTL expires. `--force` requests a new export, subject to the forced-regeneration window.
 4. The target downloads the artifact, remaps its database table prefixes to the target site, and imports the SQL.
 5. The command replaces the placeholder URL with `--target` in the imported tables, then normalizes the target site's `home` and `siteurl` options.
+
+Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`; all other source URLs are still replaced with `--target`.
 
 ## Testing
 

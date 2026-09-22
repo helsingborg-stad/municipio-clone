@@ -102,6 +102,7 @@ SQL),
                 'username' => 'admin',
                 'application-password' => 'app-password',
                 'yes' => true,
+                'keep-remote-media-urls' => true,
             ])
             ->willReturn([
                 'url' => 'https://target.example.test/site',
@@ -125,10 +126,15 @@ SQL),
                 3,
                 'wp_3_',
                 $this->isCallable(),
+                'https://source.example.test',
+                true,
             )
-            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner): void {
+            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls): void {
+                self::assertSame('https://source.example.test', $sourceUrl);
+                self::assertTrue($keepRemoteMediaUrls);
                 $stageRunner('database_import', 'Importing SQL into the target database', static fn(): null => null);
                 $stageRunner('table_discovery', 'Discovering imported database tables', static fn(): null => null);
+                $stageRunner('remote_media_url_restoration', 'Keeping remote media URLs', static fn(): null => null);
                 $stageRunner('url_replacement', 'Replacing source URLs in imported data', static fn(): null => null);
                 $stageRunner('site_url_normalization', 'Normalizing target home and site URLs', static fn(): null => null);
             });
@@ -147,7 +153,7 @@ SQL),
         );
 
         try {
-            $command->handle([], ['source-url' => 'https://source.example.test', 'target' => 'https://target.example.test/site', 'username' => 'admin', 'application-password' => 'app-password', 'yes' => true]);
+            $command->handle([], ['source-url' => 'https://source.example.test', 'target' => 'https://target.example.test/site', 'username' => 'admin', 'application-password' => 'app-password', 'yes' => true, 'keep-remote-media-urls' => true]);
         } finally {
             putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
         }
@@ -161,6 +167,7 @@ SQL),
             '[municipio-clone] Starting: Remapping database table prefixes',
             '[municipio-clone] Starting: Importing SQL into the target database',
             '[municipio-clone] Starting: Discovering imported database tables',
+            '[municipio-clone] Starting: Keeping remote media URLs',
             '[municipio-clone] Starting: Replacing source URLs in imported data',
             '[municipio-clone] Starting: Normalizing target home and site URLs',
         ], array_values(array_filter(

@@ -138,6 +138,61 @@ class DatabaseImporterTest extends TestCase
         );
     }
 
+    public function testKeepsRemoteMediaUrlsWhenRequested(): void
+    {
+        $runner = new class() extends WpCliRunner {
+            public array $commands = [];
+
+            public function run(string $command): string
+            {
+                $this->commands[] = $command;
+
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array
+            {
+                return [];
+            }
+
+            public function getSiteTables(int $blogId): array
+            {
+                return ['mun_3_posts'];
+            }
+
+            public function getCreateTableStatement(string $table): string
+            {
+                return '';
+            }
+
+            public function getRows(string $table): iterable
+            {
+                return [];
+            }
+        };
+
+        (new DatabaseImporter($runner, 'https://clone.invalid', new MutableWpService(), $databaseConnection))->import(
+            '/tmp/export.sql',
+            'http://localhost:8080/hbgtest/',
+            3,
+            'mun_3_',
+            null,
+            'https://source.example.test/site-a/',
+            true,
+        );
+
+        $this->assertCount(3, $runner->commands);
+        $this->assertStringContainsString(
+            "'https://clone.invalid/wp-content/uploads/' 'https://source.example.test/site-a/wp-content/uploads/'",
+            $runner->commands[1],
+        );
+        $this->assertStringContainsString(
+            "'https://clone.invalid' 'http://localhost:8080/hbgtest/'",
+            $runner->commands[2],
+        );
+    }
+
     public function testFailsWhenNoTargetTablesAreDiscovered(): void
     {
         $runner = new class() extends WpCliRunner {

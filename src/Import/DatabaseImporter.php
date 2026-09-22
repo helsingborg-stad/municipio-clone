@@ -30,6 +30,8 @@ class DatabaseImporter
         int $targetBlogId,
         string $targetTablePrefix,
         ?callable $stageRunner = null,
+        ?string $sourceUrl = null,
+        bool $keepRemoteMediaUrls = false,
     ): void
     {
         $this->runStage(
@@ -51,6 +53,23 @@ class DatabaseImporter
             throw new \RuntimeException(sprintf('No imported tables were found with prefix "%s".', $targetTablePrefix));
         }
         $tableArguments = $tables !== [] ? ' ' . implode(' ', array_map('escapeshellarg', $tables)) : '';
+        if ($keepRemoteMediaUrls) {
+            if ($sourceUrl === null || $sourceUrl === '') {
+                throw new \InvalidArgumentException('A source URL is required when keeping remote media URLs.');
+            }
+
+            $this->runStage(
+                $stageRunner,
+                'remote_media_url_restoration',
+                'Keeping remote media URLs',
+                fn(): string => $this->wpCliRunner->run(sprintf(
+                    'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --skip-plugins --skip-themes',
+                    escapeshellarg(rtrim($this->placeholderUrl, '/') . '/wp-content/uploads/'),
+                    escapeshellarg(rtrim($sourceUrl, '/') . '/wp-content/uploads/'),
+                    $tableArguments,
+                )),
+            );
+        }
         $this->runStage(
             $stageRunner,
             'url_replacement',
