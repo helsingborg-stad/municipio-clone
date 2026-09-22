@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.0...v1.2.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **import:** preserve artifact integrity during download ([466b417](https://github.com/helsingborg-stad/municipio-clone/commit/466b4178c27bdbcd56f21eb7981a487431182b9f))
+
 ## [1.2.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.7...v1.2.0) (2026-09-22)
 
 
