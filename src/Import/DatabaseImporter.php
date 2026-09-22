@@ -58,11 +58,10 @@ class DatabaseImporter
             'url_replacement',
             'Replacing source URLs in imported data',
             fn(): string => $this->wpCliRunner->run(sprintf(
-                'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --url=%s',
+                'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --skip-plugins --skip-themes',
                 escapeshellarg($this->placeholderUrl),
                 escapeshellarg($targetUrl),
                 $tableArguments,
-                escapeshellarg($targetUrl),
             )),
         );
         $this->runStage(

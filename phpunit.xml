@@ -2,7 +2,12 @@
 <phpunit bootstrap="phpunit-bootstrap.php" colors="true" beStrictAboutTestsThatDoNotTestAnything="false">
     <testsuites>
         <testsuite name="Municipio Clone">
-            <directory suffix="Test.php">src</directory>
+            <directory suffix="Test.php">src/Cli</directory>
+            <directory suffix="Test.php">src/Export</directory>
+            <directory suffix="Test.php">src/Import</directory>
+            <directory suffix="Test.php">src/Rest</directory>
+            <directory suffix="Test.php">src/Storage</directory>
+            <directory suffix="Test.php">src/Support</directory>
         </testsuite>
     </testsuites>
 </phpunit>
