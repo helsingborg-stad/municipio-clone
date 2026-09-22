@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.7...v1.2.0) (2026-09-22)
+
+
+### Features
+
+* **cli:** report clone progress and failures ([ab65f54](https://github.com/helsingborg-stad/municipio-clone/commit/ab65f548544f2424f2ab024bf387711e0f1fd6b7))
+
 ## [1.1.7](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.6...v1.1.7) (2026-09-22)
 
 
