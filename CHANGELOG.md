@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.3.0...v1.3.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **import:** preserve multisite remote media urls ([a039a3b](https://github.com/helsingborg-stad/municipio-clone/commit/a039a3ba35c57a4c4114c054602ad1f9a8da9ae4))
+
 ## [1.3.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.6...v1.3.0) (2026-09-22)
 
 
