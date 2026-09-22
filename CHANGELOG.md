@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.6](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.5...v1.2.6) (2026-09-22)
+
+
+### Bug Fixes
+
+* **import:** discover target tables without shell escaping ([97fc488](https://github.com/helsingborg-stad/municipio-clone/commit/97fc4884597f3e82ec8643698acaf0db2d4faad4))
+
 ## [1.2.5](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.4...v1.2.5) (2026-09-22)
 
 
