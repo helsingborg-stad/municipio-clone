@@ -15,5 +15,8 @@ interface DatabaseConnectionInterface
 
     public function getCreateTableStatement(string $table): string;
 
-    public function getRows(string $table): array;
+    /**
+     * @return iterable<array<string, mixed>> Rows must be streamed rather than buffered in full to avoid excessive memory use on large tables.
+     */
+    public function getRows(string $table): iterable;
 }

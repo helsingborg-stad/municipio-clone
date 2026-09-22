@@ -54,13 +54,61 @@ class WordPressDatabaseConnection implements DatabaseConnectionInterface
         return (string) ($row[1] ?? '');
     }
 
-    public function getRows(string $table): array
+    public function getRows(string $table): iterable
     {
         global $wpdb;
 
         $this->assertValidTableName($table);
 
-        return $wpdb->get_results(sprintf('SELECT * FROM `%s`', $table), ARRAY_A) ?: [];
+        $connection = $wpdb->dbh ?? null;
+        if ($connection instanceof \mysqli) {
+            yield from $this->getRowsUnbuffered($connection, $table);
+
+            return;
+        }
+
+        yield from $this->getRowsInChunks($table);
+    }
+
+    /**
+     * Streams rows one at a time from an unbuffered mysqli result so a whole
+     * table never has to be held in PHP memory at once.
+     *
+     * @return iterable<array<string, mixed>>
+     */
+    private function getRowsUnbuffered(\mysqli $connection, string $table): iterable
+    {
+        $result = $connection->query(sprintf('SELECT * FROM `%s`', $table), MYSQLI_USE_RESULT);
+        if (!$result instanceof \mysqli_result) {
+            return;
+        }
+
+        while (($row = $result->fetch_assoc()) !== null) {
+            yield $row;
+        }
+
+        $result->free();
+    }
+
+    /**
+     * Fallback for non-mysqli drivers: paginate the table instead of loading it whole.
+     *
+     * @return iterable<array<string, mixed>>
+     */
+    private function getRowsInChunks(string $table): iterable
+    {
+        global $wpdb;
+
+        $chunkSize = 1000;
+        $offset = 0;
+
+        do {
+            $rows = $wpdb->get_results(sprintf('SELECT * FROM `%s` LIMIT %d OFFSET %d', $table, $chunkSize, $offset), ARRAY_A) ?: [];
+            foreach ($rows as $row) {
+                yield $row;
+            }
+            $offset += $chunkSize;
+        } while (count($rows) === $chunkSize);
     }
 
     private function assertValidTableName(string $table): void
