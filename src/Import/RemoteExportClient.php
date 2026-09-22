@@ -9,6 +9,8 @@ namespace MunicipioClone\Import;
  */
 class RemoteExportClient
 {
+    private const DOWNLOAD_CHUNK_SIZE = 64 * 1024 * 1024;
+
     private bool $usesDefaultTransport;
 
     /**
@@ -42,7 +44,10 @@ class RemoteExportClient
         return $decoded;
     }
 
-    public function downloadArtifact(array $manifest): string
+    /**
+     * @param null|callable(int, int): void $progress
+     */
+    public function downloadArtifact(array $manifest, ?callable $progress = null): string
     {
         $downloadUrl = (string) ($manifest['download_url'] ?? '');
         if ($downloadUrl === '') {
@@ -58,17 +63,7 @@ class RemoteExportClient
         }
 
         try {
-            $downloadMetadata = [];
-            if ($this->usesDefaultTransport) {
-                $downloadMetadata = $this->downloadToFile($downloadUrl, $path);
-            } else {
-                $body = $this->request('GET', $downloadUrl);
-                $bytesWritten = file_put_contents($path, $body);
-                if ($bytesWritten === false || $bytesWritten !== strlen($body)) {
-                    throw new \RuntimeException('Failed to persist the downloaded artifact to disk.');
-                }
-                $downloadMetadata['received_bytes'] = $bytesWritten;
-            }
+            $downloadMetadata = $this->downloadToFile($downloadUrl, $path, $progress);
 
             $checksum = hash_file('sha256', $path);
             $expectedChecksum = (string) ($manifest['checksum'] ?? '');
@@ -91,35 +86,96 @@ class RemoteExportClient
         return $path;
     }
 
-    private function downloadToFile(string $url, string $destinationPath): array
+    private function downloadToFile(string $url, string $destinationPath, ?callable $progress): array
     {
-        $context = $this->createStreamContext('GET');
-        $source = fopen($url, 'rb', false, $context);
-        $responseHeaders = $http_response_header ?? [];
-        if ($source === false) {
-            throw new \RuntimeException(sprintf('HTTP request to %s failed.', $url));
-        }
-
         $destination = fopen($destinationPath, 'wb');
         if ($destination === false) {
-            fclose($source);
             throw new \RuntimeException('Failed to open the artifact file for writing.');
         }
 
+        $offset = 0;
+        $totalBytes = null;
+        $metadata = [];
         try {
-            $this->assertSuccessfulResponse($url, $responseHeaders);
-            $bytesCopied = stream_copy_to_stream($source, $destination);
-            if ($bytesCopied === false) {
-                throw new \RuntimeException('Failed to stream the downloaded artifact to disk.');
+            do {
+                $chunkMetadata = $this->downloadChunk($url, $destination, $offset);
+                $bytesCopied = (int) $chunkMetadata['received_bytes'];
+                $reportedOffset = (int) ($chunkMetadata['chunk_offset'] ?? -1);
+                $reportedTotal = (int) ($chunkMetadata['total_bytes'] ?? 0);
+                if ($reportedOffset !== $offset || $reportedTotal <= 0 || $bytesCopied <= 0) {
+                    throw new \RuntimeException('Remote artifact chunk metadata was invalid or incomplete.');
+                }
+                if ($totalBytes !== null && $reportedTotal !== $totalBytes) {
+                    throw new \RuntimeException('Remote artifact size changed during download.');
+                }
+
+                $totalBytes = $reportedTotal;
+                $offset += $bytesCopied;
+                $metadata = $chunkMetadata;
+                if ($progress !== null) {
+                    $progress($offset, $totalBytes);
+                }
+            } while ($offset < $totalBytes);
+
+            if ($offset !== $totalBytes) {
+                throw new \RuntimeException('Downloaded artifact exceeded the remote artifact size.');
             }
         } finally {
-            fclose($source);
             fclose($destination);
+        }
+
+        $metadata['received_bytes'] = $offset;
+        $metadata['content_length'] = $totalBytes ?? 'unknown';
+
+        return $metadata;
+    }
+
+    private function downloadChunk(string $url, $destination, int $offset): array
+    {
+        $chunkUrl = $this->addQueryParameters($url, [
+            'offset' => $offset,
+            'length' => self::DOWNLOAD_CHUNK_SIZE,
+        ]);
+        if ($this->usesDefaultTransport) {
+            $context = $this->createStreamContext('GET');
+            $source = fopen($chunkUrl, 'rb', false, $context);
+            $responseHeaders = $http_response_header ?? [];
+            if ($source === false) {
+                throw new \RuntimeException(sprintf('HTTP request to %s failed.', $chunkUrl));
+            }
+
+            try {
+                $this->assertSuccessfulResponse($chunkUrl, $responseHeaders);
+                $bytesCopied = stream_copy_to_stream($source, $destination);
+                if ($bytesCopied === false) {
+                    throw new \RuntimeException('Failed to stream the downloaded artifact chunk to disk.');
+                }
+            } finally {
+                fclose($source);
+            }
+        } else {
+            [$body, $responseHeaders] = ($this->transport)('GET', $chunkUrl, null, $this->username, $this->applicationPassword);
+            $this->assertSuccessfulResponse($chunkUrl, $responseHeaders);
+            $bytesCopied = fwrite($destination, $body);
+            if ($bytesCopied === false || $bytesCopied !== strlen($body)) {
+                throw new \RuntimeException('Failed to persist the downloaded artifact chunk to disk.');
+            }
+        }
+
+        $contentLength = (int) ($this->findLastHeaderValue($responseHeaders, 'Content-Length') ?? 0);
+        if ($contentLength !== $bytesCopied) {
+            throw new \RuntimeException(sprintf(
+                'Artifact chunk was truncated (offset %d, expected %d bytes, received %d bytes).',
+                $offset,
+                $contentLength,
+                $bytesCopied,
+            ));
         }
 
         return [
             'received_bytes' => $bytesCopied,
-            'content_length' => $this->findLastHeaderValue($responseHeaders, 'Content-Length') ?? 'unknown',
+            'total_bytes' => $this->findLastHeaderValue($responseHeaders, 'X-Municipio-Clone-Total-Bytes'),
+            'chunk_offset' => $this->findLastHeaderValue($responseHeaders, 'X-Municipio-Clone-Chunk-Offset'),
             'content_encoding' => $this->findLastHeaderValue($responseHeaders, 'Content-Encoding') ?? 'unspecified',
             'remote_checksum' => $this->findLastHeaderValue($responseHeaders, 'X-Municipio-Clone-Checksum') ?? 'missing',
         ];
@@ -200,6 +256,11 @@ class RemoteExportClient
         }
 
         return $value;
+    }
+
+    private function addQueryParameters(string $url, array $parameters): string
+    {
+        return $url . (str_contains($url, '?') ? '&' : '?') . http_build_query($parameters);
     }
 
     private function origin(string $url): string

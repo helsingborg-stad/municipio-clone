@@ -16,6 +16,8 @@ use WpService\WpService;
  */
 class ExportController
 {
+    private const DOWNLOAD_CHUNK_SIZE = 64 * 1024 * 1024;
+
     public function __construct(
         private WpService $wpService,
         private ExportService $exportService,
@@ -101,7 +103,17 @@ class ExportController
             return new \WP_Error('municipio_clone_missing_artifact', 'Artifact id is required.', ['status' => 400]);
         }
 
-        return new \WP_REST_Response(['artifact_id' => $artifactId]);
+        $this->extendRuntimeForExport();
+
+        $offset = method_exists($request, 'get_param') ? max(0, (int) $request->get_param('offset')) : 0;
+        $requestedLength = method_exists($request, 'get_param') ? (int) $request->get_param('length') : 0;
+        $length = $requestedLength > 0 ? min($requestedLength, self::DOWNLOAD_CHUNK_SIZE) : self::DOWNLOAD_CHUNK_SIZE;
+
+        return new \WP_REST_Response([
+            'artifact_id' => $artifactId,
+            'offset' => $offset,
+            'length' => $length,
+        ]);
     }
 
     public function streamArtifactDownload(bool $served, object $result, object $request, object $server): bool
@@ -112,6 +124,8 @@ class ExportController
 
         $data = method_exists($result, 'get_data') ? $result->get_data() : null;
         $artifactId = is_array($data) ? (string) ($data['artifact_id'] ?? '') : '';
+        $offset = is_array($data) ? max(0, (int) ($data['offset'] ?? 0)) : 0;
+        $requestedLength = is_array($data) ? max(1, (int) ($data['length'] ?? self::DOWNLOAD_CHUNK_SIZE)) : self::DOWNLOAD_CHUNK_SIZE;
         if ($artifactId === '') {
             return $served;
         }
@@ -126,14 +140,18 @@ class ExportController
             $this->prepareOutputForStreaming();
             $fileSize = filesize($tempFilePath);
             $checksum = hash_file('sha256', $tempFilePath);
+            if ($fileSize === false || $offset >= $fileSize) {
+                throw new \RuntimeException('The requested artifact chunk offset exceeds the artifact size.');
+            }
+            $chunkLength = min($requestedLength, $fileSize - $offset);
             if (method_exists($server, 'send_header')) {
                 $server->send_header('Content-Type', 'application/sql');
                 $server->send_header('Content-Disposition', sprintf('attachment; filename="municipio-clone-%s.sql"', $artifactId));
                 $server->send_header('Content-Encoding', 'identity');
                 $server->send_header('Cache-Control', 'private, no-store, no-transform');
-                if ($fileSize !== false) {
-                    $server->send_header('Content-Length', (string) $fileSize);
-                }
+                $server->send_header('Content-Length', (string) $chunkLength);
+                $server->send_header('X-Municipio-Clone-Total-Bytes', (string) $fileSize);
+                $server->send_header('X-Municipio-Clone-Chunk-Offset', (string) $offset);
                 if ($checksum !== false) {
                     $server->send_header('X-Municipio-Clone-Checksum', $checksum);
                 }
@@ -145,7 +163,20 @@ class ExportController
             }
 
             try {
-                fpassthru($handle);
+                $output = fopen('php://output', 'wb');
+                if ($output === false) {
+                    throw new \RuntimeException('Failed to open the artifact response stream.');
+                }
+                try {
+                    $bytesCopied = fseek($handle, $offset) === 0
+                        ? stream_copy_to_stream($handle, $output, $chunkLength)
+                        : false;
+                } finally {
+                    fclose($output);
+                }
+                if ($bytesCopied !== $chunkLength) {
+                    throw new \RuntimeException('Failed to stream the requested artifact chunk.');
+                }
             } finally {
                 fclose($handle);
             }

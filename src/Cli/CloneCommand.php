@@ -67,7 +67,10 @@ class CloneCommand
             $artifactPath = $this->runStage(
                 'artifact_download',
                 'Downloading export artifact',
-                fn(): string => $remoteExportClient->downloadArtifact($manifest),
+                fn(): string => $remoteExportClient->downloadArtifact(
+                    $manifest,
+                    fn(int $downloadedBytes, int $totalBytes): null => $this->reportDownloadProgress($downloadedBytes, $totalBytes),
+                ),
             );
 
             try {
@@ -196,6 +199,24 @@ class CloneCommand
         }
 
         fwrite(STDERR, '[municipio-clone] ' . $message . PHP_EOL);
+    }
+
+    private function reportDownloadProgress(int $downloadedBytes, int $totalBytes): null
+    {
+        $percentage = $totalBytes > 0 ? min(100, (int) floor(($downloadedBytes / $totalBytes) * 100)) : 0;
+        $this->writeProgress(sprintf(
+            'Downloaded %s of %s (%d%%)',
+            $this->formatBytes($downloadedBytes),
+            $this->formatBytes($totalBytes),
+            $percentage,
+        ));
+        $this->logger->info('municipio_clone_download_progress', [
+            'downloaded_bytes' => $downloadedBytes,
+            'total_bytes' => $totalBytes,
+            'percentage' => $percentage,
+        ]);
+
+        return null;
     }
 
     private function formatBytes(int $bytes): string
