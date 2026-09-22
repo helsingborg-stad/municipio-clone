@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MunicipioClone\Import;
 
+use MunicipioClone\Contracts\DatabaseConnectionInterface;
 use WpService\WpService;
 
 /**
@@ -15,6 +16,7 @@ class DatabaseImporter
         private WpCliRunner $wpCliRunner,
         private string $placeholderUrl,
         private WpService $wpService,
+        private DatabaseConnectionInterface $databaseConnection,
     )
     {
     }
@@ -36,19 +38,15 @@ class DatabaseImporter
             'Importing SQL into the target database',
             fn(): string => $this->wpCliRunner->run(sprintf('db import %s', escapeshellarg($artifactPath))),
         );
-        $tablesOutput = $this->runStage(
+        $tables = $this->runStage(
             $stageRunner,
             'table_discovery',
             'Discovering imported database tables',
-            fn(): string => $this->wpCliRunner->run(sprintf(
-                'db query %s --skip-column-names',
-                escapeshellarg(sprintf(
-                    "SHOW TABLES LIKE '%s'",
-                    addcslashes($targetTablePrefix, "\\_%'") . '%',
-                )),
-            )),
+            fn(): array => array_values(array_filter(array_map(
+                'strval',
+                $this->databaseConnection->getSiteTables($targetBlogId),
+            ))),
         );
-        $tables = array_values(array_filter(array_map('trim', explode("\n", $tablesOutput))));
         if ($tables === []) {
             throw new \RuntimeException(sprintf('No imported tables were found with prefix "%s".', $targetTablePrefix));
         }
