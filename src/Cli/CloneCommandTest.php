@@ -89,6 +89,7 @@ INSERT INTO `wp_7_options` (`option_name`, `option_value`) VALUES ('wp_7_user_ro
 INSERT INTO `wp_7_posts` (`post_content`) VALUES ('wp_7_posts');
 SQL),
             'source_table_prefix' => 'wp_7_',
+            'source_blog_id' => 7,
             'cache_status' => 'generated',
         ]);
         $client->method('downloadArtifact')->willReturn($artifactPath);
@@ -128,15 +129,18 @@ SQL),
                 $this->isCallable(),
                 'https://source.example.test',
                 true,
+                7,
             )
-            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls): void {
+            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, int $sourceBlogId): void {
                 self::assertSame('https://source.example.test', $sourceUrl);
                 self::assertTrue($keepRemoteMediaUrls);
+                self::assertSame(7, $sourceBlogId);
                 $stageRunner('database_import', 'Importing SQL into the target database', static fn(): null => null);
                 $stageRunner('table_discovery', 'Discovering imported database tables', static fn(): null => null);
                 $stageRunner('remote_media_url_restoration', 'Keeping remote media URLs', static fn(): null => null);
                 $stageRunner('url_replacement', 'Replacing source URLs in imported data', static fn(): null => null);
                 $stageRunner('site_url_normalization', 'Normalizing target home and site URLs', static fn(): null => null);
+                $stageRunner('remote_media_url_configuration', 'Configuring remote media URLs', static fn(): null => null);
             });
 
         $command = new CloneCommand(
@@ -170,6 +174,7 @@ SQL),
             '[municipio-clone] Starting: Keeping remote media URLs',
             '[municipio-clone] Starting: Replacing source URLs in imported data',
             '[municipio-clone] Starting: Normalizing target home and site URLs',
+            '[municipio-clone] Starting: Configuring remote media URLs',
         ], array_values(array_filter(
             \WP_CLI::$logMessages,
             static fn(string $message): bool => str_contains($message, 'Starting:'),

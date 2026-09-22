@@ -42,7 +42,7 @@ wp municipio clone \
 4. The target downloads the artifact, remaps its database table prefixes to the target site, and imports the SQL.
 5. The command replaces the placeholder URL with `--target` in the imported tables, then normalizes the target site's `home` and `siteurl` options.
 
-Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`; all other source URLs are still replaced with `--target`.
+Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`. On multisite, attachment URLs retain the source site's uploads path; all other source URLs are still replaced with `--target`.
 
 ## Testing
 

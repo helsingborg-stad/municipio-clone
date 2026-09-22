@@ -17,6 +17,7 @@ class DatabaseImporter
         private string $placeholderUrl,
         private WpService $wpService,
         private DatabaseConnectionInterface $databaseConnection,
+        private RemoteMediaUrlRewriter $remoteMediaUrlRewriter,
     )
     {
     }
@@ -32,6 +33,7 @@ class DatabaseImporter
         ?callable $stageRunner = null,
         ?string $sourceUrl = null,
         bool $keepRemoteMediaUrls = false,
+        int $sourceBlogId = 0,
     ): void
     {
         $this->runStage(
@@ -54,8 +56,8 @@ class DatabaseImporter
         }
         $tableArguments = $tables !== [] ? ' ' . implode(' ', array_map('escapeshellarg', $tables)) : '';
         if ($keepRemoteMediaUrls) {
-            if ($sourceUrl === null || $sourceUrl === '') {
-                throw new \InvalidArgumentException('A source URL is required when keeping remote media URLs.');
+            if ($sourceUrl === null || $sourceUrl === '' || $sourceBlogId <= 0) {
+                throw new \InvalidArgumentException('A source URL and source blog ID are required when keeping remote media URLs.');
             }
 
             $this->runStage(
@@ -87,6 +89,12 @@ class DatabaseImporter
             'Normalizing target home and site URLs',
             fn(): null => $this->normalizeSiteUrls($targetBlogId, $targetUrl),
         );
+        $this->runStage(
+            $stageRunner,
+            'remote_media_url_configuration',
+            'Configuring remote media URLs',
+            fn(): null => $this->configureRemoteMediaUrls($targetBlogId, $sourceBlogId, $keepRemoteMediaUrls),
+        );
     }
 
     private function normalizeSiteUrls(int $targetBlogId, string $targetUrl): null
@@ -112,6 +120,13 @@ class DatabaseImporter
         } finally {
             $this->wpService->restoreCurrentBlog();
         }
+
+        return null;
+    }
+
+    private function configureRemoteMediaUrls(int $targetBlogId, int $sourceBlogId, bool $keepRemoteMediaUrls): null
+    {
+        $this->remoteMediaUrlRewriter->configure($targetBlogId, $sourceBlogId, $keepRemoteMediaUrls);
 
         return null;
     }

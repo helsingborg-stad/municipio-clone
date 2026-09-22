@@ -13,6 +13,7 @@ use MunicipioClone\Export\FakeDataGenerator;
 use MunicipioClone\Export\SqlExportGenerator;
 use MunicipioClone\Export\WasherRegistry;
 use MunicipioClone\Import\DatabaseImporter;
+use MunicipioClone\Import\RemoteMediaUrlRewriter;
 use MunicipioClone\Import\RemoteExportClient;
 use MunicipioClone\Import\TablePrefixRemapper;
 use MunicipioClone\Import\TargetEnvironmentGuard;
@@ -38,6 +39,8 @@ class MunicipioClone
     public function boot(): void
     {
         $this->capabilityRegistrar->register();
+        $remoteMediaUrlRewriter = new RemoteMediaUrlRewriter($this->wpService);
+        $this->wpService->addFilter('wp_get_attachment_url', [$remoteMediaUrlRewriter, 'filterAttachmentUrl'], 10, 2);
         $logger = new PhpErrorLogger();
         $artifactStorage = new EncryptedArtifactStorage(
             Config::storageDirectory(),
@@ -74,6 +77,7 @@ class MunicipioClone
                     Config::placeholderUrl(),
                     $this->wpService,
                     new WordPressDatabaseConnection($this->wpService),
+                    $remoteMediaUrlRewriter,
                 ),
                 $logger,
             );

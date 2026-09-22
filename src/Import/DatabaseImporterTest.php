@@ -6,6 +6,7 @@ namespace MunicipioClone\Tests\Import;
 
 use MunicipioClone\Contracts\DatabaseConnectionInterface;
 use MunicipioClone\Import\DatabaseImporter;
+use MunicipioClone\Import\RemoteMediaUrlRewriter;
 use MunicipioClone\Import\WpCliRunner;
 use MunicipioClone\Tests\TestDoubles\MutableWpService;
 use PHPUnit\Framework\TestCase;
@@ -60,7 +61,7 @@ class DatabaseImporterTest extends TestCase
         };
 
         $wpService = new MutableWpService();
-        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection))->import(
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
             3,
@@ -73,6 +74,7 @@ class DatabaseImporterTest extends TestCase
             ['table_discovery', 'Discovering imported database tables'],
             ['url_replacement', 'Replacing source URLs in imported data'],
             ['site_url_normalization', 'Normalizing target home and site URLs'],
+            ['remote_media_url_configuration', 'Configuring remote media URLs'],
         ], $stages);
         $this->assertSame(3, $databaseConnection->requestedBlogId);
         $this->assertStringContainsString("'mun_3_posts' 'mun_3_options'", $runner->commands[1]);
@@ -130,7 +132,7 @@ class DatabaseImporterTest extends TestCase
             'Target option "siteurl" resolved to "https://localhost/hbgtest" instead of "http://localhost:8080/hbgtest". Check WP_HOME, WP_SITEURL, and URL filters.',
         );
 
-        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection))->import(
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
             3,
@@ -172,7 +174,8 @@ class DatabaseImporterTest extends TestCase
             }
         };
 
-        (new DatabaseImporter($runner, 'https://clone.invalid', new MutableWpService(), $databaseConnection))->import(
+        $wpService = new MutableWpService();
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
             3,
@@ -180,6 +183,7 @@ class DatabaseImporterTest extends TestCase
             null,
             'https://source.example.test/site-a/',
             true,
+            3,
         );
 
         $this->assertCount(3, $runner->commands);
@@ -226,7 +230,8 @@ class DatabaseImporterTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('No imported tables were found with prefix "mun_4_".');
 
-        (new DatabaseImporter($runner, 'https://clone.invalid', new MutableWpService(), $databaseConnection))->import(
+        $wpService = new MutableWpService();
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/visit/',
             4,

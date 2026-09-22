@@ -93,6 +93,7 @@ class CloneCommand
                     fn(string $stage, string $label, callable $operation): mixed => $this->runStage($stage, $label, $operation),
                     $sourceUrl,
                     $keepRemoteMediaUrls,
+                    (int) ($manifest['source_blog_id'] ?? 0),
                 );
             } finally {
                 @unlink($artifactPath);
