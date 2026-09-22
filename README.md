@@ -32,6 +32,33 @@ wp municipio clone \
   --force
 ```
 
+## How cloning works
+
+`wp municipio clone` copies a **sanitized database snapshot** from the source site into the WordPress installation where the command is run. It does not copy uploads, themes, plugins, or other filesystem content.
+
+1. The command verifies that the target environment is safe, then resolves the target URL. On multisite installations, it creates the target subsite when needed; importing into an existing subsite requires confirmation.
+2. It authenticates against the source REST API with the supplied Application Password. The source checks that the user has the `municipio_clone_export` capability.
+3. The source generates a SQL export, applies the configured washer rules to mask supported personal and form data, and replaces source URLs with the neutral placeholder URL. The encrypted artifact is cached until its TTL expires. `--force` requests a new export, subject to the forced-regeneration window.
+4. The target downloads the artifact, remaps its database table prefixes to the target site, and imports the SQL.
+5. The command replaces the placeholder URL with `--target` in the imported tables, then normalizes the target site's `home` and `siteurl` options.
+
+```mermaid
+flowchart LR
+    User[WP-CLI user] --> Command[wp municipio clone]
+    Command --> Validate[Validate local target]
+    Validate --> Target[Resolve or create target site]
+    Command -->|Application Password| ExportAPI[Source export REST API]
+    ExportAPI --> Auth[Check municipio_clone_export capability]
+    Auth --> Export[Generate sanitized SQL export]
+    Export --> Wash[Mask data and replace source URLs]
+    Wash --> Cache[Store encrypted cached artifact]
+    Cache --> Download[Download SQL artifact]
+    Download --> Prefix[Remap table prefixes]
+    Prefix --> Import[Import into target database]
+    Import --> Restore[Replace placeholder URL with target URL]
+    Restore --> Complete[Normalize home and siteurl]
+```
+
 ## Testing
 
 ```bash
