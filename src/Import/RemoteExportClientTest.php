@@ -80,4 +80,25 @@ class RemoteExportClientTest extends TestCase
             @unlink($path);
         }
     }
+
+    public function testDownloadArtifactReportsChecksumMismatchDetails(): void
+    {
+        $client = new RemoteExportClient('admin', 'app-password', static fn(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array => [
+            'altered payload',
+            ['HTTP/1.1 200 OK'],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(sprintf(
+            'expected %s, received %s; expected bytes unknown, received bytes 15; content encoding unspecified; remote checksum missing',
+            hash('sha256', 'expected payload'),
+            hash('sha256', 'altered payload'),
+        ));
+
+        $client->downloadArtifact([
+            'download_url' => 'https://source.example.test/export.sql',
+            'checksum' => hash('sha256', 'expected payload'),
+            'requested_source_origin' => 'https://source.example.test',
+        ]);
+    }
 }

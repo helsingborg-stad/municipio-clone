@@ -91,6 +91,11 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
         }
 
         $this->decryptPayloadToFile($this->payloadPath($artifactId), $destinationPath);
+        $checksum = hash_file('sha256', $destinationPath);
+        if ($checksum === false || !hash_equals($manifest->checksum, $checksum)) {
+            @unlink($destinationPath);
+            throw new \RuntimeException('The decrypted export artifact checksum does not match its manifest.');
+        }
     }
 
     /**

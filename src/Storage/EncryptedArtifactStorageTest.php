@@ -60,6 +60,29 @@ class EncryptedArtifactStorageTest extends TestCase
         $storage->writeContentToFile($manifest->artifactId, $this->createContentFile(''));
     }
 
+    public function testArtifactWithMismatchedManifestChecksumCannotBeWritten(): void
+    {
+        $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), 3600);
+        $manifest = $storage->store('cache-key', $this->createContentFile('SELECT 1;'), [
+            'source_url' => 'https://source.example.test',
+            'source_blog_id' => 1,
+            'source_table_prefix' => 'wp_',
+        ]);
+        $metadataPath = $this->storageDirectory . '/' . $manifest->artifactId . '.json';
+        $metadata = json_decode((string) file_get_contents($metadataPath), true, flags: JSON_THROW_ON_ERROR);
+        $metadata['checksum'] = hash('sha256', 'different content');
+        file_put_contents($metadataPath, json_encode($metadata, JSON_THROW_ON_ERROR));
+        $destinationPath = $this->createContentFile('');
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('The decrypted export artifact checksum does not match its manifest.');
+            $storage->writeContentToFile($manifest->artifactId, $destinationPath);
+        } finally {
+            @unlink($destinationPath);
+        }
+    }
+
     private function createContentFile(string $content): string
     {
         $path = tempnam(sys_get_temp_dir(), 'municipio_clone_storage_test_');

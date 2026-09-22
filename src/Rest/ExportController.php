@@ -125,11 +125,17 @@ class ExportController
             $this->artifactStorage->writeContentToFile($artifactId, $tempFilePath);
             $this->prepareOutputForStreaming();
             $fileSize = filesize($tempFilePath);
+            $checksum = hash_file('sha256', $tempFilePath);
             if (method_exists($server, 'send_header')) {
                 $server->send_header('Content-Type', 'application/sql');
                 $server->send_header('Content-Disposition', sprintf('attachment; filename="municipio-clone-%s.sql"', $artifactId));
+                $server->send_header('Content-Encoding', 'identity');
+                $server->send_header('Cache-Control', 'private, no-store, no-transform');
                 if ($fileSize !== false) {
                     $server->send_header('Content-Length', (string) $fileSize);
+                }
+                if ($checksum !== false) {
+                    $server->send_header('X-Municipio-Clone-Checksum', $checksum);
                 }
             }
 

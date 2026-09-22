@@ -58,19 +58,30 @@ class RemoteExportClient
         }
 
         try {
+            $downloadMetadata = [];
             if ($this->usesDefaultTransport) {
-                $this->downloadToFile($downloadUrl, $path);
+                $downloadMetadata = $this->downloadToFile($downloadUrl, $path);
             } else {
                 $body = $this->request('GET', $downloadUrl);
                 $bytesWritten = file_put_contents($path, $body);
                 if ($bytesWritten === false || $bytesWritten !== strlen($body)) {
                     throw new \RuntimeException('Failed to persist the downloaded artifact to disk.');
                 }
+                $downloadMetadata['received_bytes'] = $bytesWritten;
             }
 
             $checksum = hash_file('sha256', $path);
-            if ($checksum === false || $checksum !== (string) ($manifest['checksum'] ?? '')) {
-                throw new \RuntimeException('Downloaded artifact checksum did not match the manifest.');
+            $expectedChecksum = (string) ($manifest['checksum'] ?? '');
+            if ($checksum === false || !hash_equals($expectedChecksum, $checksum)) {
+                throw new \RuntimeException(sprintf(
+                    'Downloaded artifact checksum did not match the manifest (expected %s, received %s; expected bytes %s, received bytes %s; content encoding %s; remote checksum %s).',
+                    $expectedChecksum !== '' ? $expectedChecksum : 'missing',
+                    $checksum !== false ? $checksum : 'unavailable',
+                    $downloadMetadata['content_length'] ?? 'unknown',
+                    $downloadMetadata['received_bytes'] ?? 'unknown',
+                    $downloadMetadata['content_encoding'] ?? 'unspecified',
+                    $downloadMetadata['remote_checksum'] ?? 'missing',
+                ));
             }
         } catch (\Throwable $throwable) {
             @unlink($path);
@@ -80,7 +91,7 @@ class RemoteExportClient
         return $path;
     }
 
-    private function downloadToFile(string $url, string $destinationPath): void
+    private function downloadToFile(string $url, string $destinationPath): array
     {
         $context = $this->createStreamContext('GET');
         $source = fopen($url, 'rb', false, $context);
@@ -97,13 +108,21 @@ class RemoteExportClient
 
         try {
             $this->assertSuccessfulResponse($url, $responseHeaders);
-            if (stream_copy_to_stream($source, $destination) === false) {
+            $bytesCopied = stream_copy_to_stream($source, $destination);
+            if ($bytesCopied === false) {
                 throw new \RuntimeException('Failed to stream the downloaded artifact to disk.');
             }
         } finally {
             fclose($source);
             fclose($destination);
         }
+
+        return [
+            'received_bytes' => $bytesCopied,
+            'content_length' => $this->findLastHeaderValue($responseHeaders, 'Content-Length') ?? 'unknown',
+            'content_encoding' => $this->findLastHeaderValue($responseHeaders, 'Content-Encoding') ?? 'unspecified',
+            'remote_checksum' => $this->findLastHeaderValue($responseHeaders, 'X-Municipio-Clone-Checksum') ?? 'missing',
+        ];
     }
 
     private function request(string $method, string $url, ?array $payload = null): string
@@ -145,6 +164,7 @@ class RemoteExportClient
                 'method' => $method,
                 'header' => implode("\r\n", [
                     'Content-Type: application/json',
+                    'Accept-Encoding: identity',
                     'Authorization: Basic ' . base64_encode($this->username . ':' . $this->applicationPassword),
                 ]),
                 'content' => $payload !== null ? json_encode($payload, JSON_THROW_ON_ERROR) : null,
@@ -167,6 +187,19 @@ class RemoteExportClient
         }
 
         return $statusLine;
+    }
+
+    private function findLastHeaderValue(array $responseHeaders, string $headerName): ?string
+    {
+        $value = null;
+        $prefix = strtolower($headerName) . ':';
+        foreach ($responseHeaders as $header) {
+            if (str_starts_with(strtolower($header), $prefix)) {
+                $value = trim(substr($header, strlen($prefix)));
+            }
+        }
+
+        return $value;
     }
 
     private function origin(string $url): string
