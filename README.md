@@ -42,23 +42,6 @@ wp municipio clone \
 4. The target downloads the artifact, remaps its database table prefixes to the target site, and imports the SQL.
 5. The command replaces the placeholder URL with `--target` in the imported tables, then normalizes the target site's `home` and `siteurl` options.
 
-```mermaid
-flowchart LR
-    User[WP-CLI user] --> Command[wp municipio clone]
-    Command --> Validate[Validate local target]
-    Validate --> Target[Resolve or create target site]
-    Command -->|Application Password| ExportAPI[Source export REST API]
-    ExportAPI --> Auth[Check municipio_clone_export capability]
-    Auth --> Export[Generate sanitized SQL export]
-    Export --> Wash[Mask data and replace source URLs]
-    Wash --> Cache[Store encrypted cached artifact]
-    Cache --> Download[Download SQL artifact]
-    Download --> Prefix[Remap table prefixes]
-    Prefix --> Import[Import into target database]
-    Import --> Restore[Replace placeholder URL with target URL]
-    Restore --> Complete[Normalize home and siteurl]
-```
-
 ## Testing
 
 ```bash
