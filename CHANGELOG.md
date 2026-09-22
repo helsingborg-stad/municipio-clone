@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.7](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.6...v1.1.7) (2026-09-22)
+
+
+### Bug Fixes
+
+* **rest:** prevent buffer flush crash during download ([921e7b1](https://github.com/helsingborg-stad/municipio-clone/commit/921e7b13342b663e83090c4bd88dca08db37ffbe))
+
 ## [1.1.6](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.5...v1.1.6) (2026-09-22)
 
 
