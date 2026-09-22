@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MunicipioClone;
 
 use MunicipioClone\Capability\CapabilityRegistrar;
+use MunicipioClone\Cli\BatchCloneCommand;
+use MunicipioClone\Cli\BatchConfigurationLoader;
 use MunicipioClone\Cli\CloneCommand;
 use MunicipioClone\Database\WordPressDatabaseConnection;
 use MunicipioClone\Export\DataWasher;
@@ -17,6 +19,7 @@ use MunicipioClone\Import\RemoteMediaUrlRewriter;
 use MunicipioClone\Import\RemoteExportClient;
 use MunicipioClone\Import\TablePrefixRemapper;
 use MunicipioClone\Import\TargetEnvironmentGuard;
+use MunicipioClone\Import\TargetLockManager;
 use MunicipioClone\Import\TargetSiteManager;
 use MunicipioClone\Import\WpCliRunner;
 use MunicipioClone\Rest\ExportController;
@@ -82,6 +85,13 @@ class MunicipioClone
                 $logger,
             );
             \WP_CLI::add_command('municipio clone', [$command, 'handle']);
+            $batchCommand = new BatchCloneCommand(
+                $command,
+                new BatchConfigurationLoader(),
+                new TargetLockManager($this->wpService, Config::targetLockTtl()),
+                $logger,
+            );
+            \WP_CLI::add_command('municipio clone batch', [$batchCommand, 'handle']);
         }
     }
 }

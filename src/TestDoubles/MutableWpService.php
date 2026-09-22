@@ -206,6 +206,24 @@ class MutableWpService extends FakeWpService
         return true;
     }
 
+    public function addOption(string $option, mixed $value = '', string $deprecated = '', bool|null $autoload = null): bool
+    {
+        if (array_key_exists($option, $this->options[$this->currentBlogId] ?? [])) {
+            return false;
+        }
+
+        $this->options[$this->currentBlogId][$option] = $value;
+
+        return true;
+    }
+
+    public function deleteOption(string $option): bool
+    {
+        unset($this->options[$this->currentBlogId][$option]);
+
+        return true;
+    }
+
     public function getOption(string $option, mixed $defaultValue = false): mixed
     {
         return $this->options[$this->currentBlogId][$option] ?? $defaultValue;

@@ -5,6 +5,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 ## Features
 
 - `wp municipio clone --source-url=<source> --target=<target> --username=<username> --application-password=<password> [--force] [--keep-remote-media-urls]`
+- `wp municipio clone batch --config=<path>` for synchronizing several configured source-to-target mappings
 - REST export endpoint at `/wp-json/municipio-clone/v1/export`
 - WordPress Application Password authentication with the `municipio_clone_export` capability
 - Encrypted artifact cache with configurable TTL
@@ -18,6 +19,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 - `MUNICIPIO_CLONE_STORAGE_PATH` - Absolute directory path where encrypted export artifacts are stored. Defaults to a directory outside the web root when `ABSPATH` is available.
 - `MUNICIPIO_CLONE_ENCRYPTION_KEY` - Encryption key used to protect cached export artifacts at rest. If not set, the plugin falls back to `AUTH_KEY`; one of these must be available.
 - `MUNICIPIO_CLONE_PLACEHOLDER_URL` - Neutral placeholder URL written into exported data before import. Defaults to `https://municipio-clone-placeholder.invalid`.
+- `MUNICIPIO_CLONE_TARGET_LOCK_TTL` - Maximum number of seconds a batch mapping may lock its target. Defaults to `3600`.
 
 ## Clone usage
 
@@ -43,6 +45,41 @@ wp municipio clone \
 5. The command replaces the placeholder URL with `--target` in the imported tables, then normalizes the target site's `home` and `siteurl` options.
 
 Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`. On multisite, attachment URLs retain the source site's uploads path; all other source URLs are still replaced with `--target`.
+
+## Batch cloning
+
+Use `wp municipio clone batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially. A failed mapping is reported and does not stop remaining mappings; the command exits with an error after all mappings have been attempted.
+
+Store only URLs, flags, and environment-variable names in the JSON configuration. Do not put usernames or application passwords in the file.
+
+```json
+{
+  "mappings": [
+    {
+      "source_url": "https://production-one.example.se",
+      "target": "https://staging.example.se/site-one",
+      "username_env": "SITE_ONE_CLONE_USERNAME",
+      "application_password_env": "SITE_ONE_CLONE_APPLICATION_PASSWORD",
+      "keep_remote_media_urls": true
+    },
+    {
+      "source_url": "https://production-two.example.se",
+      "target": "https://staging.example.se/site-two",
+      "username_env": "SITE_TWO_CLONE_USERNAME",
+      "application_password_env": "SITE_TWO_CLONE_APPLICATION_PASSWORD",
+      "force": true
+    }
+  ]
+}
+```
+
+Export the named variables in the process environment, then run the command from an external scheduler such as system cron, a CI job, or the deployment platform scheduler:
+
+```bash
+wp municipio clone batch --config=/etc/municipio-clone/sites.json
+```
+
+Each target is protected by an atomic WordPress option lock for the duration of its import. A second batch attempting to synchronize the same target fails that mapping instead of importing concurrently. Maintain a database backup of each target before scheduled imports; batch cloning does not create an automatic rollback snapshot.
 
 ## Testing
 

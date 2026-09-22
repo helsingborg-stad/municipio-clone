@@ -19,6 +19,11 @@ class Config
         return defined('MUNICIPIO_CLONE_FORCE_WINDOW') ? (int) MUNICIPIO_CLONE_FORCE_WINDOW : 600;
     }
 
+    public static function targetLockTtl(): int
+    {
+        return defined('MUNICIPIO_CLONE_TARGET_LOCK_TTL') ? max(1, (int) MUNICIPIO_CLONE_TARGET_LOCK_TTL) : 3600;
+    }
+
     /**
      * Seconds allowed for a single export request to run before PHP's execution
      * time limit kills it. 0 means unlimited.
