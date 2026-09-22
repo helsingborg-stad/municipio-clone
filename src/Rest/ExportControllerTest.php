@@ -36,7 +36,18 @@ class ExportControllerTest extends TestCase
             }
 
         };
-        $wpService = new MutableWpService();
+        $wpService = new class() extends MutableWpService {
+            public bool $shutdownFlushRemoved = false;
+
+            public function removeAction(string $hookName, callable|string|array $callback, int $priority = 10): bool
+            {
+                $this->shutdownFlushRemoved = $hookName === 'shutdown'
+                    && $callback === 'wp_ob_end_flush_all'
+                    && $priority === 1;
+
+                return true;
+            }
+        };
         $controller = new ExportController($wpService, $this->createMock(ExportService::class), $storage);
         $request = new class($artifactId) {
             public function __construct(private string $artifactId)
@@ -75,5 +86,6 @@ class ExportControllerTest extends TestCase
         $this->assertTrue($served);
         $this->assertSame('SELECT 1;', $output);
         $this->assertSame('application/sql', $server->headers['Content-Type']);
+        $this->assertTrue($wpService->shutdownFlushRemoved);
     }
 }

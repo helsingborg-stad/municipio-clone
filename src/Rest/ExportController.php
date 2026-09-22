@@ -123,6 +123,7 @@ class ExportController
 
         try {
             $this->artifactStorage->writeContentToFile($artifactId, $tempFilePath);
+            $this->prepareOutputForStreaming();
             $fileSize = filesize($tempFilePath);
             if (method_exists($server, 'send_header')) {
                 $server->send_header('Content-Type', 'application/sql');
@@ -147,6 +148,25 @@ class ExportController
         }
 
         return true;
+    }
+
+    private function prepareOutputForStreaming(): void
+    {
+        $this->wpService->removeAction('shutdown', 'wp_ob_end_flush_all', 1);
+
+        if (PHP_SAPI === 'cli') {
+            return;
+        }
+
+        while (ob_get_level() > 0) {
+            $status = ob_get_status();
+            $flags = is_array($status) ? (int) ($status['flags'] ?? 0) : 0;
+            if (($flags & PHP_OUTPUT_HANDLER_REMOVABLE) === 0) {
+                break;
+            }
+
+            ob_end_clean();
+        }
     }
 
     /**

@@ -32,6 +32,11 @@ class MutableWpService extends FakeWpService
         return true;
     }
 
+    public function removeAction(string $hookName, callable|string|array $callback, int $priority = 10): bool
+    {
+        return true;
+    }
+
     public function addFilter(string $hookName, callable $callback, int $priority = 10, int $acceptedArgs = 1): true
     {
         $this->filters[$hookName][] = $callback;
