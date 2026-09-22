@@ -20,6 +20,10 @@ class SqlExportGenerator
     ) {
     }
 
+    /**
+     * @return array{content_path: string, source_url: string, source_blog_id: int, source_table_prefix: string}
+     *         The caller owns the returned content_path and must delete it once it has been stored.
+     */
     public function generate(): array
     {
         $context = $this->databaseConnection->getSiteContext();
@@ -29,15 +33,10 @@ class SqlExportGenerator
             throw new \RuntimeException('Failed to create a temporary file for the export.');
         }
 
-        try {
-            $this->writeExportToFile($tempFilePath, $context);
-            $content = (string) file_get_contents($tempFilePath);
-        } finally {
-            @unlink($tempFilePath);
-        }
+        $this->writeExportToFile($tempFilePath, $context);
 
         return [
-            'content' => $content,
+            'content_path' => $tempFilePath,
             'source_url' => (string) $context['source_url'],
             'source_blog_id' => (int) $context['blog_id'],
             'source_table_prefix' => (string) $context['table_prefix'],

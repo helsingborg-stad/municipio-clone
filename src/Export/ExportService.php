@@ -36,7 +36,11 @@ class ExportService
         }
 
         $generated = $this->exportGenerator->generate();
-        $manifest = $this->artifactStorage->store($sourceIdentifier, (string) $generated['content'], $generated);
+        try {
+            $manifest = $this->artifactStorage->store($sourceIdentifier, (string) $generated['content_path'], $generated);
+        } finally {
+            @unlink((string) $generated['content_path']);
+        }
         $this->logger->info('municipio_clone_export_generated', [
             'source' => $sourceIdentifier,
             'requester_id' => $requesterId,

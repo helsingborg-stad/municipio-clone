@@ -9,11 +9,21 @@ use MunicipioClone\Export\ArtifactManifest;
 
 /**
  * Stores export artifacts encrypted on disk outside the web root by default.
+ *
+ * Content is streamed to/from disk in fixed-size chunks (via libsodium's secretstream
+ * API) instead of being held in memory as a single string, since export dumps can be
+ * larger than the available PHP memory limit.
  */
 class EncryptedArtifactStorage implements ArtifactStorageInterface
 {
-    public function __construct(private string $storageDirectory, private string $encryptionKey, private int $ttl)
+    private const CHUNK_SIZE = 1024 * 1024;
+
+    private string $encryptionKey;
+
+    public function __construct(private string $storageDirectory, string $encryptionKey, private int $ttl)
     {
+        // Sodium's secretstream requires an exact 32-byte key; derive one so any key length is accepted.
+        $this->encryptionKey = hash('sha256', $encryptionKey, true);
     }
 
     public function getFresh(string $cacheKey): ?ArtifactManifest
@@ -38,26 +48,24 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
         return ArtifactManifest::fromArray($metadata);
     }
 
-    public function store(string $cacheKey, string $content, array $metadata): ArtifactManifest
+    public function store(string $cacheKey, string $contentPath, array $metadata): ArtifactManifest
     {
         $this->ensureDirectory();
-        $artifactId = $this->artifactIdFromCacheKey($cacheKey);
-        $iv = random_bytes((int) openssl_cipher_iv_length('aes-256-gcm'));
-        $tag = '';
-        $ciphertext = openssl_encrypt($content, 'aes-256-gcm', $this->encryptionKey, OPENSSL_RAW_DATA, $iv, $tag);
-        if ($ciphertext === false) {
-            throw new \RuntimeException('Failed to encrypt export artifact.');
+        if (!is_file($contentPath)) {
+            throw new \RuntimeException('The export content file does not exist.');
         }
 
-        $payload = $iv . $tag . $ciphertext;
-        $payloadWriteResult = file_put_contents($this->payloadPath($artifactId), $payload);
-        if ($payloadWriteResult === false || $payloadWriteResult !== strlen($payload)) {
-            throw new \RuntimeException('Failed to persist the encrypted export payload.');
+        $artifactId = $this->artifactIdFromCacheKey($cacheKey);
+        $checksum = hash_file('sha256', $contentPath);
+        if ($checksum === false) {
+            throw new \RuntimeException('Failed to checksum the export content.');
         }
+
+        $this->encryptFileToPayload($contentPath, $this->payloadPath($artifactId));
 
         $manifest = new ArtifactManifest(
             $artifactId,
-            hash('sha256', $content),
+            $checksum,
             time(),
             time() + $this->ttl,
             (string) $metadata['source_url'],
@@ -82,26 +90,120 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
             throw new \RuntimeException('The requested export artifact does not exist or has expired.');
         }
 
-        $payload = file_get_contents($this->payloadPath($artifactId));
-        if ($payload === false) {
+        $destinationPath = tempnam(sys_get_temp_dir(), 'municipio_clone_artifact_');
+        if ($destinationPath === false) {
+            throw new \RuntimeException('Failed to create a temporary file for the export artifact.');
+        }
+
+        try {
+            $this->decryptPayloadToFile($this->payloadPath($artifactId), $destinationPath);
+
+            return (string) file_get_contents($destinationPath);
+        } finally {
+            @unlink($destinationPath);
+        }
+    }
+
+    /**
+     * Encrypts a file in fixed-size chunks so the whole payload is never held in memory at once.
+     */
+    private function encryptFileToPayload(string $sourcePath, string $payloadPath): void
+    {
+        $source = fopen($sourcePath, 'rb');
+        if ($source === false) {
+            throw new \RuntimeException('Failed to open the export content for encryption.');
+        }
+
+        $destination = fopen($payloadPath, 'wb');
+        if ($destination === false) {
+            fclose($source);
+            throw new \RuntimeException('Failed to open the export payload for writing.');
+        }
+
+        try {
+            [$state, $header] = sodium_crypto_secretstream_xchacha20poly1305_init_push($this->encryptionKey);
+            $this->writeOrFail($destination, $header);
+
+            $chunk = fread($source, self::CHUNK_SIZE);
+            if ($chunk === false) {
+                throw new \RuntimeException('Failed to read the export content while encrypting.');
+            }
+
+            do {
+                $next = fread($source, self::CHUNK_SIZE);
+                if ($next === false) {
+                    throw new \RuntimeException('Failed to read the export content while encrypting.');
+                }
+
+                $isFinalChunk = $next === '';
+                $tag = $isFinalChunk
+                    ? SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_TAG_FINAL
+                    : SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_TAG_MESSAGE;
+                $this->writeOrFail($destination, sodium_crypto_secretstream_xchacha20poly1305_push($state, $chunk, '', $tag));
+                $chunk = $next;
+            } while ($chunk !== '');
+        } finally {
+            fclose($source);
+            fclose($destination);
+        }
+    }
+
+    /**
+     * Decrypts a payload in fixed-size chunks so the whole ciphertext/plaintext pair is never held in memory at once.
+     */
+    private function decryptPayloadToFile(string $payloadPath, string $destinationPath): void
+    {
+        $headerLength = SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_HEADERBYTES;
+        $overhead = SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_ABYTES;
+
+        $source = fopen($payloadPath, 'rb');
+        if ($source === false) {
             throw new \RuntimeException('Failed to read the requested export artifact payload.');
         }
 
-        $ivLength = (int) openssl_cipher_iv_length('aes-256-gcm');
-        $tagLength = 16;
-        if (strlen($payload) < ($ivLength + $tagLength)) {
-            throw new \RuntimeException('The requested export artifact payload is incomplete.');
+        $destination = fopen($destinationPath, 'wb');
+        if ($destination === false) {
+            fclose($source);
+            throw new \RuntimeException('Failed to open a temporary file for the decrypted export content.');
         }
 
-        $iv = substr($payload, 0, $ivLength);
-        $tag = substr($payload, $ivLength, $tagLength);
-        $ciphertext = substr($payload, $ivLength + $tagLength);
-        $plaintext = openssl_decrypt($ciphertext, 'aes-256-gcm', $this->encryptionKey, OPENSSL_RAW_DATA, $iv, $tag);
-        if ($plaintext === false) {
-            throw new \RuntimeException('Failed to decrypt export artifact.');
-        }
+        try {
+            $header = fread($source, $headerLength);
+            if ($header === false || strlen($header) !== $headerLength) {
+                throw new \RuntimeException('The requested export artifact payload is incomplete.');
+            }
 
-        return $plaintext;
+            $state = sodium_crypto_secretstream_xchacha20poly1305_init_pull($header, $this->encryptionKey);
+
+            $finalTagSeen = false;
+            $chunk = fread($source, self::CHUNK_SIZE + $overhead);
+            while ($chunk !== false && $chunk !== '') {
+                $result = sodium_crypto_secretstream_xchacha20poly1305_pull($state, $chunk);
+                if ($result === false) {
+                    throw new \RuntimeException('Failed to decrypt the export artifact; the payload may have been tampered with.');
+                }
+
+                [$plaintext, $tag] = $result;
+                $this->writeOrFail($destination, $plaintext);
+                $finalTagSeen = $tag === SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_TAG_FINAL;
+                $chunk = fread($source, self::CHUNK_SIZE + $overhead);
+            }
+
+            if (!$finalTagSeen) {
+                throw new \RuntimeException('The requested export artifact payload is incomplete.');
+            }
+        } finally {
+            fclose($source);
+            fclose($destination);
+        }
+    }
+
+    private function writeOrFail($handle, string $data): void
+    {
+        $bytesWritten = fwrite($handle, $data);
+        if ($bytesWritten === false || $bytesWritten !== strlen($data)) {
+            throw new \RuntimeException('Failed to write export artifact data.');
+        }
     }
 
     private function ensureDirectory(): void

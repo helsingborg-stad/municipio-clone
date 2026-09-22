@@ -34,7 +34,7 @@ class EncryptedArtifactStorageTest extends TestCase
     public function testStoredArtifactCanBeRetrievedBeforeExpiry(): void
     {
         $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), 3600);
-        $manifest = $storage->store('cache-key', 'SELECT 1;', [
+        $manifest = $storage->store('cache-key', $this->createContentFile('SELECT 1;'), [
             'source_url' => 'https://source.example.test',
             'source_blog_id' => 1,
             'source_table_prefix' => 'wp_',
@@ -46,7 +46,7 @@ class EncryptedArtifactStorageTest extends TestCase
     public function testExpiredArtifactCannotBeRetrieved(): void
     {
         $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), -1);
-        $manifest = $storage->store('cache-key', 'SELECT 1;', [
+        $manifest = $storage->store('cache-key', $this->createContentFile('SELECT 1;'), [
             'source_url' => 'https://source.example.test',
             'source_blog_id' => 1,
             'source_table_prefix' => 'wp_',
@@ -54,5 +54,16 @@ class EncryptedArtifactStorageTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         $storage->retrieveContent($manifest->artifactId);
+    }
+
+    private function createContentFile(string $content): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'municipio_clone_storage_test_');
+        if ($path === false) {
+            throw new \RuntimeException('Failed to create a temporary export content file for the test.');
+        }
+        file_put_contents($path, $content);
+
+        return $path;
     }
 }
