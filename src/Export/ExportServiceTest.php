@@ -32,9 +32,8 @@ class ExportServiceTest extends TestCase
 
                 return $this->storedManifest;
             }
-            public function retrieveContent(string $artifactId): string
+            public function writeContentToFile(string $artifactId, string $destinationPath): void
             {
-                return '';
             }
         };
         $generator = $this->createMock(SqlExportGenerator::class);
@@ -73,9 +72,8 @@ class ExportServiceTest extends TestCase
             {
                 throw new \RuntimeException('Store should not be called.');
             }
-            public function retrieveContent(string $artifactId): string
+            public function writeContentToFile(string $artifactId, string $destinationPath): void
             {
-                return '';
             }
         };
         $generator = $this->createMock(SqlExportGenerator::class);
@@ -107,9 +105,8 @@ class ExportServiceTest extends TestCase
             {
                 return new ArtifactManifest('forced-artifact', hash_file('sha256', $contentPath), time(), time() + 60, $metadata['source_url'], $metadata['source_blog_id'], $metadata['source_table_prefix'], $cacheKey);
             }
-            public function retrieveContent(string $artifactId): string
+            public function writeContentToFile(string $artifactId, string $destinationPath): void
             {
-                return '';
             }
         };
         $generator = $this->createMock(SqlExportGenerator::class);

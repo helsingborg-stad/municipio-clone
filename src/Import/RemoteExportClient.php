@@ -9,6 +9,8 @@ namespace MunicipioClone\Import;
  */
 class RemoteExportClient
 {
+    private bool $usesDefaultTransport;
+
     /**
      * @param callable|null $transport
      */
@@ -18,6 +20,7 @@ class RemoteExportClient
         private $transport = null,
     )
     {
+        $this->usesDefaultTransport = $this->transport === null;
         $this->transport ??= [$this, 'defaultTransport'];
     }
 
@@ -49,29 +52,70 @@ class RemoteExportClient
             throw new \RuntimeException('Manifest download URL must match the requested source origin.');
         }
 
-        $body = $this->request('GET', $downloadUrl);
-        $checksum = hash('sha256', $body);
-        if ($checksum !== (string) ($manifest['checksum'] ?? '')) {
-            throw new \RuntimeException('Downloaded artifact checksum did not match the manifest.');
-        }
-
         $path = tempnam(sys_get_temp_dir(), 'municipio-clone-');
         if ($path === false) {
             throw new \RuntimeException('Failed to create a temporary artifact file.');
         }
 
-        $bytesWritten = file_put_contents($path, $body);
-        if ($bytesWritten === false || $bytesWritten !== strlen($body)) {
+        try {
+            if ($this->usesDefaultTransport) {
+                $this->downloadToFile($downloadUrl, $path);
+            } else {
+                $body = $this->request('GET', $downloadUrl);
+                $bytesWritten = file_put_contents($path, $body);
+                if ($bytesWritten === false || $bytesWritten !== strlen($body)) {
+                    throw new \RuntimeException('Failed to persist the downloaded artifact to disk.');
+                }
+            }
+
+            $checksum = hash_file('sha256', $path);
+            if ($checksum === false || $checksum !== (string) ($manifest['checksum'] ?? '')) {
+                throw new \RuntimeException('Downloaded artifact checksum did not match the manifest.');
+            }
+        } catch (\Throwable $throwable) {
             @unlink($path);
-            throw new \RuntimeException('Failed to persist the downloaded artifact to disk.');
+            throw $throwable;
         }
 
         return $path;
     }
 
+    private function downloadToFile(string $url, string $destinationPath): void
+    {
+        $context = $this->createStreamContext('GET');
+        $source = fopen($url, 'rb', false, $context);
+        $responseHeaders = $http_response_header ?? [];
+        if ($source === false) {
+            throw new \RuntimeException(sprintf('HTTP request to %s failed.', $url));
+        }
+
+        $destination = fopen($destinationPath, 'wb');
+        if ($destination === false) {
+            fclose($source);
+            throw new \RuntimeException('Failed to open the artifact file for writing.');
+        }
+
+        try {
+            $this->assertSuccessfulResponse($url, $responseHeaders);
+            if (stream_copy_to_stream($source, $destination) === false) {
+                throw new \RuntimeException('Failed to stream the downloaded artifact to disk.');
+            }
+        } finally {
+            fclose($source);
+            fclose($destination);
+        }
+    }
+
     private function request(string $method, string $url, ?array $payload = null): string
     {
         [$body, $responseHeaders] = ($this->transport)($method, $url, $payload, $this->username, $this->applicationPassword);
+        $this->assertSuccessfulResponse($url, $responseHeaders);
+
+        return $body;
+    }
+
+    private function assertSuccessfulResponse(string $url, array $responseHeaders): void
+    {
         $statusLine = $this->findLastStatusLine($responseHeaders);
         if (preg_match('/\s(\d{3})\s/', $statusLine, $matches) !== 1) {
             throw new \RuntimeException(sprintf('HTTP response from %s did not include a valid status code.', $url));
@@ -81,31 +125,33 @@ class RemoteExportClient
         if ($statusCode < 200 || $statusCode >= 300) {
             throw new \RuntimeException(sprintf('HTTP request to %s returned status %d.', $url, $statusCode));
         }
-
-        return $body;
     }
 
     private function defaultTransport(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array
     {
-        $headers = [
-            'Content-Type: application/json',
-            'Authorization: Basic ' . base64_encode($username . ':' . $applicationPassword),
-        ];
-        $context = stream_context_create([
-            'http' => [
-                'method' => $method,
-                'header' => implode("\r\n", $headers),
-                'content' => $payload !== null ? json_encode($payload, JSON_THROW_ON_ERROR) : null,
-                'ignore_errors' => true,
-                'timeout' => 300,
-            ],
-        ]);
+        $context = $this->createStreamContext($method, $payload);
         $body = file_get_contents($url, false, $context);
         if ($body === false) {
             throw new \RuntimeException(sprintf('HTTP request to %s failed.', $url));
         }
 
         return [$body, $http_response_header ?? []];
+    }
+
+    private function createStreamContext(string $method, ?array $payload = null)
+    {
+        return stream_context_create([
+            'http' => [
+                'method' => $method,
+                'header' => implode("\r\n", [
+                    'Content-Type: application/json',
+                    'Authorization: Basic ' . base64_encode($this->username . ':' . $this->applicationPassword),
+                ]),
+                'content' => $payload !== null ? json_encode($payload, JSON_THROW_ON_ERROR) : null,
+                'ignore_errors' => true,
+                'timeout' => 300,
+            ],
+        ]);
     }
 
     /**

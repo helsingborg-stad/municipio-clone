@@ -46,12 +46,16 @@ class CloneCommand
         $remoteExportClient = ($this->remoteExportClientFactory)($username, $applicationPassword);
         $manifest = $remoteExportClient->requestExport($sourceUrl, $force);
         $artifactPath = $remoteExportClient->downloadArtifact($manifest);
-        $artifactPath = $this->tablePrefixRemapper->remapFile(
-            $artifactPath,
-            (string) ($manifest['source_table_prefix'] ?? 'wp_'),
-            (string) $targetSite['table_prefix'],
-        );
-        $this->databaseImporter->import($artifactPath, (string) $targetSite['url']);
+        try {
+            $artifactPath = $this->tablePrefixRemapper->remapFile(
+                $artifactPath,
+                (string) ($manifest['source_table_prefix'] ?? 'wp_'),
+                (string) $targetSite['table_prefix'],
+            );
+            $this->databaseImporter->import($artifactPath, (string) $targetSite['url']);
+        } finally {
+            @unlink($artifactPath);
+        }
         $this->logger->info('municipio_clone_import_completed', [
             'source' => $sourceUrl,
             'target' => $targetSite['url'],

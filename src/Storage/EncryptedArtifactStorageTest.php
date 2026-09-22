@@ -31,7 +31,7 @@ class EncryptedArtifactStorageTest extends TestCase
         }
     }
 
-    public function testStoredArtifactCanBeRetrievedBeforeExpiry(): void
+    public function testStoredArtifactCanBeWrittenToAFileBeforeExpiry(): void
     {
         $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), 3600);
         $manifest = $storage->store('cache-key', $this->createContentFile('SELECT 1;'), [
@@ -39,8 +39,12 @@ class EncryptedArtifactStorageTest extends TestCase
             'source_blog_id' => 1,
             'source_table_prefix' => 'wp_',
         ]);
+        $destinationPath = $this->createContentFile('');
 
-        $this->assertSame('SELECT 1;', $storage->retrieveContent($manifest->artifactId));
+        $storage->writeContentToFile($manifest->artifactId, $destinationPath);
+
+        $this->assertSame('SELECT 1;', file_get_contents($destinationPath));
+        @unlink($destinationPath);
     }
 
     public function testExpiredArtifactCannotBeRetrieved(): void
@@ -53,7 +57,7 @@ class EncryptedArtifactStorageTest extends TestCase
         ]);
 
         $this->expectException(\RuntimeException::class);
-        $storage->retrieveContent($manifest->artifactId);
+        $storage->writeContentToFile($manifest->artifactId, $this->createContentFile(''));
     }
 
     private function createContentFile(string $content): string

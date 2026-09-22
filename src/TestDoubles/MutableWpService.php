@@ -32,6 +32,13 @@ class MutableWpService extends FakeWpService
         return true;
     }
 
+    public function addFilter(string $hookName, callable $callback, int $priority = 10, int $acceptedArgs = 1): true
+    {
+        $this->filters[$hookName][] = $callback;
+
+        return true;
+    }
+
     public function registerRestRoute(string $routeNamespace, string $route, array $args = [], bool $override = false): bool
     {
         $this->routes[] = [$routeNamespace, $route, $args, $override];

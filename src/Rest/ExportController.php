@@ -25,6 +25,7 @@ class ExportController
 
     public function registerRoutes(): void
     {
+        $this->wpService->addFilter('rest_pre_serve_request', [$this, 'streamArtifactDownload'], 10, 4);
         $this->wpService->registerRestRoute('municipio-clone/v1', '/export', [
             [
                 'methods' => 'POST',
@@ -100,9 +101,52 @@ class ExportController
             return new \WP_Error('municipio_clone_missing_artifact', 'Artifact id is required.', ['status' => 400]);
         }
 
-        return new \WP_REST_Response($this->artifactStorage->retrieveContent($artifactId), 200, [
-            'Content-Type' => 'application/sql',
-        ]);
+        return new \WP_REST_Response(['artifact_id' => $artifactId]);
+    }
+
+    public function streamArtifactDownload(bool $served, object $result, object $request, object $server): bool
+    {
+        if ($served || !method_exists($request, 'get_route') || !preg_match('#^/municipio-clone/v1/export/[a-f0-9]{32}$#', (string) $request->get_route())) {
+            return $served;
+        }
+
+        $data = method_exists($result, 'get_data') ? $result->get_data() : null;
+        $artifactId = is_array($data) ? (string) ($data['artifact_id'] ?? '') : '';
+        if ($artifactId === '') {
+            return $served;
+        }
+
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'municipio_clone_download_');
+        if ($tempFilePath === false) {
+            throw new \RuntimeException('Failed to create a temporary artifact download file.');
+        }
+
+        try {
+            $this->artifactStorage->writeContentToFile($artifactId, $tempFilePath);
+            $fileSize = filesize($tempFilePath);
+            if (method_exists($server, 'send_header')) {
+                $server->send_header('Content-Type', 'application/sql');
+                $server->send_header('Content-Disposition', sprintf('attachment; filename="municipio-clone-%s.sql"', $artifactId));
+                if ($fileSize !== false) {
+                    $server->send_header('Content-Length', (string) $fileSize);
+                }
+            }
+
+            $handle = fopen($tempFilePath, 'rb');
+            if ($handle === false) {
+                throw new \RuntimeException('Failed to open the artifact download file.');
+            }
+
+            try {
+                fpassthru($handle);
+            } finally {
+                fclose($handle);
+            }
+        } finally {
+            @unlink($tempFilePath);
+        }
+
+        return true;
     }
 
     /**

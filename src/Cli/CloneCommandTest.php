@@ -53,7 +53,7 @@ class CloneCommandTest extends TestCase
     {
         $command = new CloneCommand(
             new TargetEnvironmentGuard(),
-            static fn(string $username, string $applicationPassword): RemoteExportClient => $this->createMock(RemoteExportClient::class),
+            fn(string $username, string $applicationPassword): RemoteExportClient => $this->createMock(RemoteExportClient::class),
             $this->createMock(TargetSiteManager::class),
             $this->createMock(TablePrefixRemapper::class),
             $this->createMock(DatabaseImporter::class),
@@ -111,7 +111,17 @@ SQL),
         $importer = $this->createMock(DatabaseImporter::class);
         $importer->expects($this->once())
             ->method('import')
-            ->with($artifactPath, 'https://target.example.test/site');
+            ->with(
+                $this->callback(static function (string $path): bool {
+                    $content = (string) file_get_contents($path);
+
+                    return str_contains($content, 'wp_3_posts')
+                        && str_contains($content, 'wp_3_user_roles')
+                        && str_contains($content, 'wp_3_capabilities')
+                        && str_contains($content, "'wp_7_posts'");
+                }),
+                'https://target.example.test/site',
+            );
 
         $command = new CloneCommand(
             new TargetEnvironmentGuard(),
@@ -132,9 +142,6 @@ SQL),
             putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
         }
 
-        $this->assertStringContainsString('wp_3_posts', (string) file_get_contents($artifactPath));
-        $this->assertStringContainsString('wp_3_user_roles', (string) file_get_contents($artifactPath));
-        $this->assertStringContainsString('wp_3_capabilities', (string) file_get_contents($artifactPath));
-        $this->assertStringContainsString("'wp_7_posts'", (string) file_get_contents($artifactPath));
+        $this->assertFileDoesNotExist($artifactPath);
     }
 }

@@ -83,25 +83,14 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
         return $manifest;
     }
 
-    public function retrieveContent(string $artifactId): string
+    public function writeContentToFile(string $artifactId, string $destinationPath): void
     {
         $manifest = $this->loadManifest($artifactId);
         if ($manifest === null || $manifest->expiresAt < time()) {
             throw new \RuntimeException('The requested export artifact does not exist or has expired.');
         }
 
-        $destinationPath = tempnam(sys_get_temp_dir(), 'municipio_clone_artifact_');
-        if ($destinationPath === false) {
-            throw new \RuntimeException('Failed to create a temporary file for the export artifact.');
-        }
-
-        try {
-            $this->decryptPayloadToFile($this->payloadPath($artifactId), $destinationPath);
-
-            return (string) file_get_contents($destinationPath);
-        } finally {
-            @unlink($destinationPath);
-        }
+        $this->decryptPayloadToFile($this->payloadPath($artifactId), $destinationPath);
     }
 
     /**

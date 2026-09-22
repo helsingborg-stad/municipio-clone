@@ -60,4 +60,24 @@ class RemoteExportClientTest extends TestCase
             'requested_source_origin' => 'https://source.example.test',
         ]);
     }
+
+    public function testDownloadArtifactPersistsChecksumVerifiedContent(): void
+    {
+        $client = new RemoteExportClient('admin', 'app-password', static fn(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array => [
+            'SELECT 1;',
+            ['HTTP/1.1 200 OK'],
+        ]);
+
+        $path = $client->downloadArtifact([
+            'download_url' => 'https://source.example.test/export.sql',
+            'checksum' => hash('sha256', 'SELECT 1;'),
+            'requested_source_origin' => 'https://source.example.test',
+        ]);
+
+        try {
+            $this->assertSame('SELECT 1;', file_get_contents($path));
+        } finally {
+            @unlink($path);
+        }
+    }
 }

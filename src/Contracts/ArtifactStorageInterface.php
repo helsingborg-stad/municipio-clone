@@ -19,5 +19,5 @@ interface ArtifactStorageInterface
      */
     public function store(string $cacheKey, string $contentPath, array $metadata): ArtifactManifest;
 
-    public function retrieveContent(string $artifactId): string;
+    public function writeContentToFile(string $artifactId, string $destinationPath): void;
 }
