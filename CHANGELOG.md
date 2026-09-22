@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.0...v1.4.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **cli:** move batch clone to top-level command ([91fa8bc](https://github.com/helsingborg-stad/municipio-clone/commit/91fa8bcbf794e0f90c3ee5622f79b332e53eea95))
+
 ## [1.4.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.3.1...v1.4.0) (2026-09-22)
 
 
