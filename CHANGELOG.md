@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.5](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.4...v1.2.5) (2026-09-22)
+
+
+### Bug Fixes
+
+* **import:** avoid target bootstrap during replacement ([c825ff5](https://github.com/helsingborg-stad/municipio-clone/commit/c825ff5b6d1029453333aeb2d09721d1d794fbaf))
+
 ## [1.2.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.3...v1.2.4) (2026-09-22)
 
 
