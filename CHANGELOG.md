@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.2...v1.2.3) (2026-09-22)
+
+
+### Bug Fixes
+
+* **import:** normalize target site URLs ([77a30b4](https://github.com/helsingborg-stad/municipio-clone/commit/77a30b4ca693e8e0f94cef9a1fbe819bbdf341f8))
+
 ## [1.2.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.2.1...v1.2.2) (2026-09-22)
 
 
