@@ -4,7 +4,7 @@
  * Plugin Name: Municipio Clone
  * Description: Adds a sanitized export REST endpoint and WP-CLI clone command for WordPress site cloning.
  * x-release-please-start-version
- * Version: 1.2.6
+ * Version: 1.3.0
  * x-release-please-end
  * Author: Helsingborgs stad
  * License: MIT
