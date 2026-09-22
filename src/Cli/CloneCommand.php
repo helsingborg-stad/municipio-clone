@@ -16,6 +16,12 @@ use MunicipioClone\Import\TargetSiteManager;
  */
 class CloneCommand
 {
+    private string $activeStage = 'initializing';
+
+    private bool $commandCompleted = true;
+
+    private ?string $fatalErrorMemoryReserve = null;
+
     /**
     * @param callable(string, string):RemoteExportClient $remoteExportClientFactory
      */
@@ -41,29 +47,163 @@ class CloneCommand
 
         $force = array_key_exists('force', $associativeArguments) && (string) $associativeArguments['force'] !== 'false';
 
-        $this->environmentGuard->assertSafe();
-        $targetSite = $this->targetSiteManager->prepare($targetUrl, $associativeArguments);
-        $remoteExportClient = ($this->remoteExportClientFactory)($username, $applicationPassword);
-        $manifest = $remoteExportClient->requestExport($sourceUrl, $force);
-        $artifactPath = $remoteExportClient->downloadArtifact($manifest);
+        $this->commandCompleted = false;
+        $this->fatalErrorMemoryReserve = str_repeat(' ', 256 * 1024);
+        $this->registerFatalShutdownReporter($sourceUrl, $targetUrl);
+
         try {
-            $artifactPath = $this->tablePrefixRemapper->remapFile(
-                $artifactPath,
-                (string) ($manifest['source_table_prefix'] ?? 'wp_'),
-                (string) $targetSite['table_prefix'],
+            $this->runStage('environment_validation', 'Validating target environment', fn() => $this->environmentGuard->assertSafe());
+            $targetSite = $this->runStage(
+                'target_preparation',
+                'Preparing target site',
+                fn(): array => $this->targetSiteManager->prepare($targetUrl, $associativeArguments),
             );
-            $this->databaseImporter->import($artifactPath, (string) $targetSite['url']);
+            $remoteExportClient = ($this->remoteExportClientFactory)($username, $applicationPassword);
+            $manifest = $this->runStage(
+                'remote_export',
+                'Requesting remote export',
+                fn(): array => $remoteExportClient->requestExport($sourceUrl, $force),
+            );
+            $artifactPath = $this->runStage(
+                'artifact_download',
+                'Downloading export artifact',
+                fn(): string => $remoteExportClient->downloadArtifact($manifest),
+            );
+
+            try {
+                $artifactPath = $this->runStage(
+                    'prefix_remapping',
+                    'Remapping database table prefixes',
+                    fn(): string => $this->tablePrefixRemapper->remapFile(
+                        $artifactPath,
+                        (string) ($manifest['source_table_prefix'] ?? 'wp_'),
+                        (string) $targetSite['table_prefix'],
+                    ),
+                );
+                $this->databaseImporter->import(
+                    $artifactPath,
+                    (string) $targetSite['url'],
+                    fn(string $stage, string $label, callable $operation): mixed => $this->runStage($stage, $label, $operation),
+                );
+            } finally {
+                @unlink($artifactPath);
+            }
+
+            $this->logger->info('municipio_clone_import_completed', [
+                'source' => $sourceUrl,
+                'target' => $targetSite['url'],
+                'cache_status' => $manifest['cache_status'] ?? 'unknown',
+            ]);
+
+            if (class_exists('WP_CLI')) {
+                \WP_CLI::success('Municipio clone import completed.');
+            }
         } finally {
-            @unlink($artifactPath);
+            $this->commandCompleted = true;
+            $this->fatalErrorMemoryReserve = null;
         }
-        $this->logger->info('municipio_clone_import_completed', [
-            'source' => $sourceUrl,
-            'target' => $targetSite['url'],
-            'cache_status' => $manifest['cache_status'] ?? 'unknown',
+    }
+
+    private function runStage(string $stage, string $label, callable $operation): mixed
+    {
+        $this->activeStage = $stage;
+        $startedAt = microtime(true);
+        $this->writeProgress(sprintf('Starting: %s', $label));
+        $this->logger->info('municipio_clone_stage_started', [
+            'stage' => $stage,
+            'memory_bytes' => memory_get_usage(true),
         ]);
 
-        if (class_exists('WP_CLI')) {
-            \WP_CLI::success('Municipio clone import completed.');
+        try {
+            $result = $operation();
+        } catch (\Throwable $throwable) {
+            $context = [
+                'stage' => $stage,
+                'elapsed_seconds' => round(microtime(true) - $startedAt, 3),
+                'memory_bytes' => memory_get_usage(true),
+                'error_type' => $throwable::class,
+                'error_message' => $throwable->getMessage(),
+            ];
+            $this->logger->info('municipio_clone_stage_failed', $context);
+            $this->writeWarning(sprintf('Failed during "%s": %s', $label, $throwable->getMessage()));
+
+            throw $throwable;
         }
+
+        $elapsedSeconds = microtime(true) - $startedAt;
+        $memoryBytes = memory_get_usage(true);
+        $this->logger->info('municipio_clone_stage_completed', [
+            'stage' => $stage,
+            'elapsed_seconds' => round($elapsedSeconds, 3),
+            'memory_bytes' => $memoryBytes,
+        ]);
+        $this->writeProgress(sprintf(
+            'Completed: %s (%.1fs, %s memory)',
+            $label,
+            $elapsedSeconds,
+            $this->formatBytes($memoryBytes),
+        ));
+
+        return $result;
+    }
+
+    private function registerFatalShutdownReporter(string $sourceUrl, string $targetUrl): void
+    {
+        register_shutdown_function(function () use ($sourceUrl, $targetUrl): void {
+            if ($this->commandCompleted) {
+                return;
+            }
+
+            $this->fatalErrorMemoryReserve = null;
+
+            $error = error_get_last();
+            if (!is_array($error) || !in_array((int) ($error['type'] ?? 0), [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+                return;
+            }
+
+            $context = [
+                'stage' => $this->activeStage,
+                'source' => $sourceUrl,
+                'target' => $targetUrl,
+                'memory_bytes' => memory_get_usage(true),
+                'peak_memory_bytes' => memory_get_peak_usage(true),
+                'error_message' => (string) ($error['message'] ?? 'Unknown fatal error.'),
+                'error_file' => (string) ($error['file'] ?? ''),
+                'error_line' => (int) ($error['line'] ?? 0),
+            ];
+            $this->logger->info('municipio_clone_fatal_error', $context);
+            $this->writeWarning(sprintf(
+                'Clone stopped during stage "%s" because of a fatal error: %s',
+                $this->activeStage,
+                $context['error_message'],
+            ));
+        });
+    }
+
+    private function writeProgress(string $message): void
+    {
+        if (class_exists('WP_CLI') && method_exists('WP_CLI', 'log')) {
+            \WP_CLI::log('[municipio-clone] ' . $message);
+        }
+    }
+
+    private function writeWarning(string $message): void
+    {
+        if (class_exists('WP_CLI') && method_exists('WP_CLI', 'warning')) {
+            \WP_CLI::warning('[municipio-clone] ' . $message);
+
+            return;
+        }
+
+        fwrite(STDERR, '[municipio-clone] ' . $message . PHP_EOL);
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes < 1024 * 1024) {
+            return sprintf('%.1f KB', $bytes / 1024);
+        }
+
+        return sprintf('%.1f MB', $bytes / 1024 / 1024);
     }
 }
