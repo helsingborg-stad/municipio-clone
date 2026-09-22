@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.6](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.5...v1.1.6) (2026-09-22)
+
+
+### Bug Fixes
+
+* **clone:** stream artifacts throughout clone pipeline ([d8faeb0](https://github.com/helsingborg-stad/municipio-clone/commit/d8faeb01da19b2eb4d3dcbd6ae1196a3cb4fb7bc))
+
 ## [1.1.5](https://github.com/helsingborg-stad/municipio-clone/compare/v1.1.4...v1.1.5) (2026-09-22)
 
 
