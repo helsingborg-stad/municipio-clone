@@ -183,7 +183,6 @@ class DatabaseImporterTest extends TestCase
             null,
             'https://source.example.test/site-a/',
             true,
-            3,
         );
 
         $this->assertCount(3, $runner->commands);
@@ -194,6 +193,58 @@ class DatabaseImporterTest extends TestCase
         $this->assertStringContainsString(
             "'https://clone.invalid' 'http://localhost:8080/hbgtest/'",
             $runner->commands[2],
+        );
+    }
+
+    public function testUsesTheCapturedSourceMediaBaseUrlWhenProvided(): void
+    {
+        $runner = new class() extends WpCliRunner {
+            public array $commands = [];
+
+            public function run(string $command): string
+            {
+                $this->commands[] = $command;
+
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array
+            {
+                return [];
+            }
+
+            public function getSiteTables(int $blogId): array
+            {
+                return ['mun_3_posts'];
+            }
+
+            public function getCreateTableStatement(string $table): string
+            {
+                return '';
+            }
+
+            public function getRows(string $table): iterable
+            {
+                return [];
+            }
+        };
+
+        $wpService = new MutableWpService();
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
+            '/tmp/export.sql',
+            'http://localhost:8080/hbgtest/',
+            3,
+            'mun_3_',
+            null,
+            'https://source.example.test/site-a/',
+            true,
+            'https://media-cdn.example.test/uploads/networks/5/sites/196',
+        );
+
+        $this->assertStringContainsString(
+            "'https://clone.invalid/wp-content/uploads/' 'https://media-cdn.example.test/uploads/networks/5/sites/196/'",
+            $runner->commands[1],
         );
     }
 

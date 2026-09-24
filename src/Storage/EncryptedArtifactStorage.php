@@ -72,6 +72,7 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
             (int) $metadata['source_blog_id'],
             (string) $metadata['source_table_prefix'],
             $cacheKey,
+            (string) ($metadata['source_media_base_url'] ?? ''),
         );
         $manifestJson = json_encode($manifest->toArray(), JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
         $metadataWriteResult = file_put_contents($this->metadataPath($artifactId), $manifestJson);

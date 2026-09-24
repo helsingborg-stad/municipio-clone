@@ -33,7 +33,7 @@ class DatabaseImporter
         ?callable $stageRunner = null,
         ?string $sourceUrl = null,
         bool $keepRemoteMediaUrls = false,
-        int $sourceBlogId = 0,
+        ?string $sourceMediaBaseUrl = null,
     ): void
     {
         $this->runStage(
@@ -55,10 +55,15 @@ class DatabaseImporter
             throw new \RuntimeException(sprintf('No imported tables were found with prefix "%s".', $targetTablePrefix));
         }
         $tableArguments = $tables !== [] ? ' ' . implode(' ', array_map('escapeshellarg', $tables)) : '';
+        $resolvedSourceMediaBaseUrl = '';
         if ($keepRemoteMediaUrls) {
-            if ($sourceUrl === null || $sourceUrl === '' || $sourceBlogId <= 0) {
-                throw new \InvalidArgumentException('A source URL and source blog ID are required when keeping remote media URLs.');
+            if ($sourceUrl === null || $sourceUrl === '') {
+                throw new \InvalidArgumentException('A source URL is required when keeping remote media URLs.');
             }
+
+            $resolvedSourceMediaBaseUrl = $sourceMediaBaseUrl !== null && $sourceMediaBaseUrl !== ''
+                ? rtrim($sourceMediaBaseUrl, '/')
+                : rtrim($sourceUrl, '/') . '/wp-content/uploads';
 
             $this->runStage(
                 $stageRunner,
@@ -67,7 +72,7 @@ class DatabaseImporter
                 fn(): string => $this->wpCliRunner->run(sprintf(
                     'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --skip-plugins --skip-themes',
                     escapeshellarg(rtrim($this->placeholderUrl, '/') . '/wp-content/uploads/'),
-                    escapeshellarg(rtrim($sourceUrl, '/') . '/wp-content/uploads/'),
+                    escapeshellarg($resolvedSourceMediaBaseUrl . '/'),
                     $tableArguments,
                 )),
             );
@@ -93,7 +98,7 @@ class DatabaseImporter
             $stageRunner,
             'remote_media_url_configuration',
             'Configuring remote media URLs',
-            fn(): null => $this->configureRemoteMediaUrls($targetBlogId, $sourceBlogId, $keepRemoteMediaUrls),
+            fn(): null => $this->configureRemoteMediaUrls($targetBlogId, $resolvedSourceMediaBaseUrl, $keepRemoteMediaUrls),
         );
     }
 
@@ -124,9 +129,9 @@ class DatabaseImporter
         return null;
     }
 
-    private function configureRemoteMediaUrls(int $targetBlogId, int $sourceBlogId, bool $keepRemoteMediaUrls): null
+    private function configureRemoteMediaUrls(int $targetBlogId, string $sourceMediaBaseUrl, bool $keepRemoteMediaUrls): null
     {
-        $this->remoteMediaUrlRewriter->configure($targetBlogId, $sourceBlogId, $keepRemoteMediaUrls);
+        $this->remoteMediaUrlRewriter->configure($targetBlogId, $sourceMediaBaseUrl, $keepRemoteMediaUrls);
 
         return null;
     }

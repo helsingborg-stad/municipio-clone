@@ -23,6 +23,7 @@ class MutableWpService extends FakeWpService
     public bool $multisite = false;
     public int $currentBlogId = 1;
     public string $homeUrl = 'https://source.example.test';
+    public string $uploadDirBaseUrl = 'https://source.example.test/wp-content/uploads';
     public array $capabilities = [];
     public array $superAdmins = [];
 
@@ -87,6 +88,11 @@ class MutableWpService extends FakeWpService
     public function isMultisite(): bool
     {
         return $this->multisite;
+    }
+
+    public function wpGetUploadDir(): array
+    {
+        return ['baseurl' => $this->uploadDirBaseUrl];
     }
 
     public function wpInsertSite(array $data): int|\WP_Error

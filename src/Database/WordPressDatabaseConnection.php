@@ -27,6 +27,7 @@ class WordPressDatabaseConnection implements DatabaseConnectionInterface
             'blog_id' => $blogId,
             'source_url' => $this->wpService->getHomeUrl($blogId),
             'table_prefix' => $tablePrefix,
+            'media_base_url' => rtrim((string) ($this->wpService->wpGetUploadDir()['baseurl'] ?? ''), '/'),
         ];
     }
 

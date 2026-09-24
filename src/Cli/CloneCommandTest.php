@@ -90,6 +90,7 @@ INSERT INTO `wp_7_posts` (`post_content`) VALUES ('wp_7_posts');
 SQL),
             'source_table_prefix' => 'wp_7_',
             'source_blog_id' => 7,
+            'source_media_base_url' => 'https://media.example.test/uploads',
             'cache_status' => 'generated',
         ]);
         $client->method('downloadArtifact')->willReturn($artifactPath);
@@ -129,12 +130,12 @@ SQL),
                 $this->isCallable(),
                 'https://source.example.test',
                 true,
-                7,
+                'https://media.example.test/uploads',
             )
-            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, int $sourceBlogId): void {
+            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, string $sourceMediaBaseUrl): void {
                 self::assertSame('https://source.example.test', $sourceUrl);
                 self::assertTrue($keepRemoteMediaUrls);
-                self::assertSame(7, $sourceBlogId);
+                self::assertSame('https://media.example.test/uploads', $sourceMediaBaseUrl);
                 $stageRunner('database_import', 'Importing SQL into the target database', static fn(): null => null);
                 $stageRunner('table_discovery', 'Discovering imported database tables', static fn(): null => null);
                 $stageRunner('remote_media_url_restoration', 'Keeping remote media URLs', static fn(): null => null);

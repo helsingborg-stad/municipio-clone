@@ -18,6 +18,7 @@ class ArtifactManifest
         public readonly int $sourceBlogId,
         public readonly string $sourceTablePrefix,
         public readonly string $cacheKey,
+        public readonly string $sourceMediaBaseUrl = '',
     ) {
     }
 
@@ -32,6 +33,7 @@ class ArtifactManifest
             (int) $data['source_blog_id'],
             (string) $data['source_table_prefix'],
             (string) $data['cache_key'],
+            (string) ($data['source_media_base_url'] ?? ''),
         );
     }
 
@@ -46,6 +48,7 @@ class ArtifactManifest
             'source_blog_id' => $this->sourceBlogId,
             'source_table_prefix' => $this->sourceTablePrefix,
             'cache_key' => $this->cacheKey,
+            'source_media_base_url' => $this->sourceMediaBaseUrl,
         ];
     }
 }

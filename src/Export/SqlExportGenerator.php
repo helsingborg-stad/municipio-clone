@@ -21,7 +21,7 @@ class SqlExportGenerator
     }
 
     /**
-     * @return array{content_path: string, source_url: string, source_blog_id: int, source_table_prefix: string}
+     * @return array{content_path: string, source_url: string, source_blog_id: int, source_table_prefix: string, source_media_base_url: string}
      *         The caller owns the returned content_path and must delete it once it has been stored.
      */
     public function generate(): array
@@ -40,6 +40,7 @@ class SqlExportGenerator
             'source_url' => (string) $context['source_url'],
             'source_blog_id' => (int) $context['blog_id'],
             'source_table_prefix' => (string) $context['table_prefix'],
+            'source_media_base_url' => (string) ($context['media_base_url'] ?? ''),
         ];
     }
 
