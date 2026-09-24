@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.1...v1.4.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **import:** correctly rewrite remote media urls to the source's actual media domain ([4cb5b75](https://github.com/helsingborg-stad/municipio-clone/commit/4cb5b75dd3f31b7d001df538eb0dccfb94dea35f))
+
 ## [1.4.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.0...v1.4.1) (2026-09-22)
 
 
