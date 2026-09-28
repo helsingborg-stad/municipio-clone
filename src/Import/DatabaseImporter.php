@@ -70,7 +70,7 @@ class DatabaseImporter
                 'remote_media_url_restoration',
                 'Keeping remote media URLs',
                 fn(): string => $this->wpCliRunner->run(sprintf(
-                    'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --skip-plugins --skip-themes',
+                    'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --skip-plugins --skip-themes --format=count',
                     escapeshellarg(rtrim($this->placeholderUrl, '/') . '/wp-content/uploads/'),
                     escapeshellarg($resolvedSourceMediaBaseUrl . '/'),
                     $tableArguments,
@@ -82,7 +82,7 @@ class DatabaseImporter
             'url_replacement',
             'Replacing source URLs in imported data',
             fn(): string => $this->wpCliRunner->run(sprintf(
-                'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --skip-plugins --skip-themes',
+                'search-replace %s %s%s --all-tables-with-prefix --precise --skip-columns=guid --skip-plugins --skip-themes --format=count',
                 escapeshellarg($this->placeholderUrl),
                 escapeshellarg($targetUrl),
                 $tableArguments,

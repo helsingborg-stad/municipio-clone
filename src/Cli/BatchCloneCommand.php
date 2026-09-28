@@ -35,10 +35,11 @@ class BatchCloneCommand
         $mappings = $this->configurationLoader->load($configurationPath);
         $failures = [];
 
-        foreach ($mappings as $mapping) {
+        $mappingCount = count($mappings);
+        foreach (array_values($mappings) as $index => $mapping) {
             $startedAt = microtime(true);
             try {
-                $this->writeLog(sprintf('Synchronizing %s to %s', $mapping->sourceUrl, $mapping->targetUrl));
+                $this->writeLog(sprintf('[%d/%d] Synchronizing %s to %s', $index + 1, $mappingCount, $mapping->sourceUrl, $mapping->targetUrl));
                 if (!$this->targetLockManager->acquire($mapping->targetUrl)) {
                     throw new \RuntimeException(sprintf('Target "%s" is already being synchronized.', $mapping->targetUrl));
                 }
@@ -81,14 +82,14 @@ class BatchCloneCommand
     private function writeLog(string $message): void
     {
         if (class_exists('WP_CLI') && method_exists('WP_CLI', 'log')) {
-            \WP_CLI::log('[municipio-clone] ' . $message);
+            \WP_CLI::log($message);
         }
     }
 
     private function writeWarning(string $message): void
     {
         if (class_exists('WP_CLI') && method_exists('WP_CLI', 'warning')) {
-            \WP_CLI::warning('[municipio-clone] ' . $message);
+            \WP_CLI::warning($message);
         }
     }
 }

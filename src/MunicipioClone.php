@@ -28,6 +28,7 @@ use MunicipioClone\Support\Config;
 use MunicipioClone\Support\PhpErrorLogger;
 use MunicipioClone\Support\PlaceholderReplacer;
 use MunicipioClone\Support\RateLimiter;
+use MunicipioClone\Support\WpCliDebugLogger;
 use WpService\WpService;
 
 /**
@@ -70,6 +71,7 @@ class MunicipioClone
         $this->wpService->addAction('rest_api_init', [$controller, 'registerRoutes']);
 
         if (class_exists('WP_CLI')) {
+            $cliLogger = new WpCliDebugLogger();
             $command = new CloneCommand(
                 new TargetEnvironmentGuard(),
                 static fn(string $username, string $applicationPassword): RemoteExportClient => new RemoteExportClient($username, $applicationPassword),
@@ -82,14 +84,14 @@ class MunicipioClone
                     new WordPressDatabaseConnection($this->wpService),
                     $remoteMediaUrlRewriter,
                 ),
-                $logger,
+                $cliLogger,
             );
             \WP_CLI::add_command('municipio clone', [$command, 'handle']);
             $batchCommand = new BatchCloneCommand(
                 $command,
                 new BatchConfigurationLoader(),
                 new TargetLockManager($this->wpService, Config::targetLockTtl()),
-                $logger,
+                $cliLogger,
             );
             \WP_CLI::add_command('municipio clone-batch', [$batchCommand, 'handle']);
         }

@@ -22,6 +22,10 @@ class CloneCommand
 
     private ?string $fatalErrorMemoryReserve = null;
 
+    private mixed $downloadProgressBar = null;
+
+    private int $reportedDownloadBytes = 0;
+
     /**
     * @param callable(string, string):RemoteExportClient $remoteExportClientFactory
      */
@@ -50,6 +54,7 @@ class CloneCommand
             && (string) $associativeArguments['keep-remote-media-urls'] !== 'false';
 
         $this->commandCompleted = false;
+        $commandStartedAt = microtime(true);
         $this->fatalErrorMemoryReserve = str_repeat(' ', 256 * 1024);
         $this->registerFatalShutdownReporter($sourceUrl, $targetUrl);
 
@@ -106,9 +111,15 @@ class CloneCommand
             ]);
 
             if (class_exists('WP_CLI')) {
-                \WP_CLI::success('Municipio clone import completed.');
+                \WP_CLI::success(sprintf(
+                    'Cloned %s to %s in %.1fs.',
+                    $sourceUrl,
+                    $targetSite['url'],
+                    microtime(true) - $commandStartedAt,
+                ));
             }
         } finally {
+            $this->finishDownloadProgressBar();
             $this->commandCompleted = true;
             $this->fatalErrorMemoryReserve = null;
         }
@@ -118,7 +129,7 @@ class CloneCommand
     {
         $this->activeStage = $stage;
         $startedAt = microtime(true);
-        $this->writeProgress(sprintf('Starting: %s', $label));
+        $this->writeProgress($label . '...');
         $this->logger->info('municipio_clone_stage_started', [
             'stage' => $stage,
             'memory_bytes' => memory_get_usage(true),
@@ -135,24 +146,17 @@ class CloneCommand
                 'error_message' => $throwable->getMessage(),
             ];
             $this->logger->info('municipio_clone_stage_failed', $context);
+            $this->finishDownloadProgressBar();
             $this->writeWarning(sprintf('Failed during "%s": %s', $label, $throwable->getMessage()));
 
             throw $throwable;
         }
 
-        $elapsedSeconds = microtime(true) - $startedAt;
-        $memoryBytes = memory_get_usage(true);
         $this->logger->info('municipio_clone_stage_completed', [
             'stage' => $stage,
-            'elapsed_seconds' => round($elapsedSeconds, 3),
-            'memory_bytes' => $memoryBytes,
+            'elapsed_seconds' => round(microtime(true) - $startedAt, 3),
+            'memory_bytes' => memory_get_usage(true),
         ]);
-        $this->writeProgress(sprintf(
-            'Completed: %s (%.1fs, %s memory)',
-            $label,
-            $elapsedSeconds,
-            $this->formatBytes($memoryBytes),
-        ));
 
         return $result;
     }
@@ -193,30 +197,25 @@ class CloneCommand
     private function writeProgress(string $message): void
     {
         if (class_exists('WP_CLI') && method_exists('WP_CLI', 'log')) {
-            \WP_CLI::log('[municipio-clone] ' . $message);
+            \WP_CLI::log($message);
         }
     }
 
     private function writeWarning(string $message): void
     {
         if (class_exists('WP_CLI') && method_exists('WP_CLI', 'warning')) {
-            \WP_CLI::warning('[municipio-clone] ' . $message);
+            \WP_CLI::warning($message);
 
             return;
         }
 
-        fwrite(STDERR, '[municipio-clone] ' . $message . PHP_EOL);
+        fwrite(STDERR, 'Warning: ' . $message . PHP_EOL);
     }
 
     private function reportDownloadProgress(int $downloadedBytes, int $totalBytes): null
     {
         $percentage = $totalBytes > 0 ? min(100, (int) floor(($downloadedBytes / $totalBytes) * 100)) : 0;
-        $this->writeProgress(sprintf(
-            'Downloaded %s of %s (%d%%)',
-            $this->formatBytes($downloadedBytes),
-            $this->formatBytes($totalBytes),
-            $percentage,
-        ));
+        $this->advanceDownloadProgressBar($downloadedBytes, $totalBytes);
         $this->logger->info('municipio_clone_download_progress', [
             'downloaded_bytes' => $downloadedBytes,
             'total_bytes' => $totalBytes,
@@ -224,6 +223,38 @@ class CloneCommand
         ]);
 
         return null;
+    }
+
+    private function advanceDownloadProgressBar(int $downloadedBytes, int $totalBytes): void
+    {
+        if (!function_exists('WP_CLI\Utils\make_progress_bar')) {
+            return;
+        }
+
+        if ($this->downloadProgressBar === null) {
+            $this->reportedDownloadBytes = 0;
+            $this->downloadProgressBar = \WP_CLI\Utils\make_progress_bar(
+                sprintf('Downloading %s', $this->formatBytes($totalBytes)),
+                $totalBytes,
+            );
+        }
+
+        $this->downloadProgressBar->tick($downloadedBytes - $this->reportedDownloadBytes);
+        $this->reportedDownloadBytes = $downloadedBytes;
+
+        if ($downloadedBytes >= $totalBytes) {
+            $this->finishDownloadProgressBar();
+        }
+    }
+
+    private function finishDownloadProgressBar(): void
+    {
+        if ($this->downloadProgressBar === null) {
+            return;
+        }
+
+        $this->downloadProgressBar->finish();
+        $this->downloadProgressBar = null;
     }
 
     private function formatBytes(int $bytes): string

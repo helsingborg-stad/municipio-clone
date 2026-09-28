@@ -107,7 +107,7 @@ class BatchCloneCommandTest extends TestCase
         }
 
         $this->assertCount(2, $cloneCommand->calls);
-        $this->assertContains('[municipio-clone] Failed to synchronize https://one-target.example.test: Remote export failed.', \WP_CLI::$warningMessages);
+        $this->assertContains('Failed to synchronize https://one-target.example.test: Remote export failed.', \WP_CLI::$warningMessages);
         $this->assertSame('municipio_clone_batch_mapping_failed', $logger->entries[0][0]);
         $this->assertSame('municipio_clone_batch_mapping_completed', $logger->entries[1][0]);
         $this->assertSame('municipio_clone_batch_completed', $logger->entries[2][0]);

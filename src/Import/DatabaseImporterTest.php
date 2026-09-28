@@ -80,6 +80,7 @@ class DatabaseImporterTest extends TestCase
         $this->assertStringContainsString("'mun_3_posts' 'mun_3_options'", $runner->commands[1]);
         $this->assertStringContainsString('--all-tables-with-prefix', $runner->commands[1]);
         $this->assertStringContainsString('--skip-plugins --skip-themes', $runner->commands[1]);
+        $this->assertStringContainsString('--format=count', $runner->commands[1]);
         $this->assertStringNotContainsString('--url=', $runner->commands[1]);
         $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['home']);
         $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['siteurl']);

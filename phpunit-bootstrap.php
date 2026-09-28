@@ -58,6 +58,7 @@ if (!class_exists('WP_CLI')) {
         public static array $successMessages = [];
         public static array $logMessages = [];
         public static array $warningMessages = [];
+        public static array $debugMessages = [];
 
         public static function add_command(string $name, callable $callback): void
         {
@@ -89,6 +90,11 @@ if (!class_exists('WP_CLI')) {
         public static function warning(string $message): void
         {
             self::$warningMessages[] = $message;
+        }
+
+        public static function debug(string $message, string|bool $group = false): void
+        {
+            self::$debugMessages[] = [$message, $group];
         }
 
     }

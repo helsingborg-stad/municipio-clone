@@ -165,21 +165,18 @@ SQL),
 
         $this->assertFileDoesNotExist($artifactPath);
         $this->assertSame([
-            '[municipio-clone] Starting: Validating target environment',
-            '[municipio-clone] Starting: Preparing target site',
-            '[municipio-clone] Starting: Requesting remote export',
-            '[municipio-clone] Starting: Downloading export artifact',
-            '[municipio-clone] Starting: Remapping database table prefixes',
-            '[municipio-clone] Starting: Importing SQL into the target database',
-            '[municipio-clone] Starting: Discovering imported database tables',
-            '[municipio-clone] Starting: Keeping remote media URLs',
-            '[municipio-clone] Starting: Replacing source URLs in imported data',
-            '[municipio-clone] Starting: Normalizing target home and site URLs',
-            '[municipio-clone] Starting: Configuring remote media URLs',
-        ], array_values(array_filter(
-            \WP_CLI::$logMessages,
-            static fn(string $message): bool => str_contains($message, 'Starting:'),
-        )));
+            'Validating target environment...',
+            'Preparing target site...',
+            'Requesting remote export...',
+            'Downloading export artifact...',
+            'Remapping database table prefixes...',
+            'Importing SQL into the target database...',
+            'Discovering imported database tables...',
+            'Keeping remote media URLs...',
+            'Replacing source URLs in imported data...',
+            'Normalizing target home and site URLs...',
+            'Configuring remote media URLs...',
+        ], \WP_CLI::$logMessages);
     }
 
     public function testHandleReportsTheStageThatFailed(): void
@@ -227,7 +224,7 @@ SQL),
         }
 
         $this->assertContains(
-            '[municipio-clone] Failed during "Requesting remote export": Remote request failed.',
+            'Failed during "Requesting remote export": Remote request failed.',
             \WP_CLI::$warningMessages,
         );
         $failureEntries = array_values(array_filter(
