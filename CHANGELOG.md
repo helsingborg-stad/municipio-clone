@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.3...v1.4.4) (2026-09-30)
+
+
+### Bug Fixes
+
+* unhandled exception on false passed to unserialization ([b65e186](https://github.com/helsingborg-stad/municipio-clone/commit/b65e186d07a0cde78ae9acdd19efee690cbc873f))
+
 ## [1.4.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.2...v1.4.3) (2026-09-28)
 
 
