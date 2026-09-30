@@ -48,6 +48,10 @@ class PlaceholderReplacer
             if ($unserialized !== $value) {
                 $updated = $this->replace($unserialized, $search, $replace);
 
+                if( !is_string($updated) && !is_array($updated) && !is_object($updated) ) {
+                    return $updated;
+                }
+
                 return $this->wpService->maybeSerialize($updated);
             }
         }

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace MunicipioClone\Tests\Support;
 
+use Exception;
 use MunicipioClone\Support\PlaceholderReplacer;
 use PHPUnit\Framework\TestCase;
 use MunicipioClone\Tests\TestDoubles\MutableWpService;
+use PHPUnit\Framework\Attributes\TestDox;
 
 /**
  * @covers \MunicipioClone\Support\PlaceholderReplacer
@@ -49,5 +51,21 @@ class PlaceholderReplacerTest extends TestCase
 
         $this->assertSame('https://target.example.test/first', $result['direct']);
         $this->assertSame('https://target.example.test/second', $result['object']->url);
+    }
+
+    #[TestDox('does not throw if nothing to unserialize')]
+    public function testDoesNotThrowIfNothingToUnserialize(): void
+    {
+        $replacer = new PlaceholderReplacer(new MutableWpService());
+        $payload = 'b:0;';
+
+        try {
+            $replacer->replace($payload, 'https://source.example.test', 'https://target.example.test');
+        } catch(Exception $e) {
+            static::fail('did not handle exception');
+            return;
+        }
+
+        static::assertTrue(true, 'does not throw');
     }
 }
