@@ -148,7 +148,6 @@ class ExportController
             if (method_exists($server, 'send_header')) {
                 $server->send_header('Content-Type', 'application/sql');
                 $server->send_header('Content-Disposition', sprintf('attachment; filename="municipio-clone-%s.sql"', $artifactId));
-                $server->send_header('Content-Encoding', 'identity');
                 $server->send_header('Cache-Control', 'private, no-store, no-transform');
                 $server->send_header('Content-Length', (string) $chunkLength);
                 $server->send_header('X-Municipio-Clone-Total-Bytes', (string) $fileSize);
