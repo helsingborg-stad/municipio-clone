@@ -34,8 +34,8 @@ class CloneMapping
      */
     public function toAssociativeArguments(): array
     {
-        $username = getenv($this->usernameEnvironmentVariable);
-        $applicationPassword = getenv($this->applicationPasswordEnvironmentVariable);
+        $username = defined($this->usernameEnvironmentVariable) ? constant($this->usernameEnvironmentVariable) : getenv($this->usernameEnvironmentVariable);
+        $applicationPassword = defined($this->applicationPasswordEnvironmentVariable) ? constant($this->applicationPasswordEnvironmentVariable) : getenv($this->applicationPasswordEnvironmentVariable);
         if ($username === false || $username === '' || $applicationPassword === false || $applicationPassword === '') {
             throw new \RuntimeException(sprintf(
                 'Missing credentials for source "%s". Set %s and %s.',
