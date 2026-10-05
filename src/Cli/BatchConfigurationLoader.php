@@ -14,13 +14,11 @@ class BatchConfigurationLoader
      */
     public function load(string $path): array
     {
-        if ($path === '' || !is_file($path) || !is_readable($path)) {
-            throw new \InvalidArgumentException(sprintf('Batch configuration file "%s" is not readable.', $path));
-        }
+        $content = (new BatchCloneConfigurationResolver\ResolveConfigurationFromFilePath($path))->resolve();
+        $content = $content ?? (new BatchCloneConfigurationResolver\ResolveConfigurationFromConst($path, null))->resolve();
 
-        $content = file_get_contents($path);
-        if ($content === false) {
-            throw new \RuntimeException(sprintf('Failed to read batch configuration file "%s".', $path));
+        if($content === null) {
+            throw new \InvalidArgumentException(sprintf('Batch configuration could not be resolved from file "%s" or constant "BATCH_CONFIGURATION".', $path));
         }
 
         try {
