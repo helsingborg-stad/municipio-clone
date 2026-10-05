@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.4...v1.5.0) (2026-10-05)
+
+
+### Features
+
+* allow using constants for environment variables in clone mapping ([094da93](https://github.com/helsingborg-stad/municipio-clone/commit/094da93900700aae249d0550a93a6775351cbad3))
+
+
+### Miscellaneous Chores
+
+* add .vscode extensions ([7245637](https://github.com/helsingborg-stad/municipio-clone/commit/7245637a9c1431186f415154280ea6f507cb50d4))
+
 ## [1.4.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.3...v1.4.4) (2026-09-30)
 
 
