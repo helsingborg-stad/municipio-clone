@@ -50,7 +50,7 @@ Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-c
 
 Use `wp municipio clone-batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially. A failed mapping is reported and does not stop remaining mappings; the command exits with an error after all mappings have been attempted.
 
-Store only URLs, flags, and environment-variable names in the JSON configuration. Do not put usernames or application passwords in the file.
+Store only URLs, flags, and credential references in the JSON configuration. Do not put usernames or application passwords in the file. The `username_env` and `application_password_env` values can name either a PHP constant or an environment variable. A defined PHP constant takes precedence; if it is not defined, the matching environment variable is read.
 
 ```json
 {
@@ -78,6 +78,8 @@ Export the named variables in the process environment, then run the command from
 ```bash
 wp municipio clone-batch --config=/etc/municipio-clone/sites.json
 ```
+
+The `--config` value may also be the name of a PHP constant containing the batch configuration as a JSON string. This lets you keep the configuration and credential constants in the WordPress bootstrap instead of using a JSON file.
 
 Each target is protected by an atomic WordPress option lock for the duration of its import. A second batch attempting to synchronize the same target fails that mapping instead of importing concurrently. Maintain a database backup of each target before scheduled imports; batch cloning does not create an automatic rollback snapshot.
 
