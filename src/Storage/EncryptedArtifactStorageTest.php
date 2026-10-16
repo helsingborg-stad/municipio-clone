@@ -47,6 +47,98 @@ class EncryptedArtifactStorageTest extends TestCase
         @unlink($destinationPath);
     }
 
+    public function testReplacingCachedArtifactKeepsPreviouslyIssuedArtifactAvailable(): void
+    {
+        $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), 3600, 3600);
+        $firstContentPath = $this->createContentFile('SELECT 1;');
+        $secondContentPath = $this->createContentFile('SELECT 2;');
+
+        $firstManifest = $storage->store('cache-key', $firstContentPath, [
+            'source_url' => 'https://source.example.test',
+            'source_blog_id' => 1,
+            'source_table_prefix' => 'wp_',
+        ]);
+        $secondManifest = $storage->store('cache-key', $secondContentPath, [
+            'source_url' => 'https://source.example.test',
+            'source_blog_id' => 1,
+            'source_table_prefix' => 'wp_',
+        ]);
+        $firstDownloadPath = $this->createContentFile('');
+        $secondDownloadPath = $this->createContentFile('');
+
+        try {
+            $storage->writeContentToFile($firstManifest->artifactId, $firstDownloadPath);
+            $storage->writeContentToFile($secondManifest->artifactId, $secondDownloadPath);
+
+            $this->assertNotSame($firstManifest->artifactId, $secondManifest->artifactId);
+            $this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $secondManifest->artifactId);
+            $this->assertSame('SELECT 1;', file_get_contents($firstDownloadPath));
+            $this->assertSame('SELECT 2;', file_get_contents($secondDownloadPath));
+            $this->assertSame($secondManifest->artifactId, $storage->getFresh('cache-key')?->artifactId);
+        } finally {
+            @unlink($firstContentPath);
+            @unlink($secondContentPath);
+            @unlink($firstDownloadPath);
+            @unlink($secondDownloadPath);
+        }
+    }
+
+    public function testArtifactRemainsDownloadableAfterCacheExpiresDuringRetention(): void
+    {
+        $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), -1, 3600);
+        $contentPath = $this->createContentFile('SELECT 1;');
+        $manifest = $storage->store('cache-key', $contentPath, [
+            'source_url' => 'https://source.example.test',
+            'source_blog_id' => 1,
+            'source_table_prefix' => 'wp_',
+        ]);
+        $destinationPath = $this->createContentFile('');
+
+        try {
+            $this->assertNull($storage->getFresh('cache-key'));
+            $storage->writeContentToFile($manifest->artifactId, $destinationPath);
+
+            $this->assertSame('SELECT 1;', file_get_contents($destinationPath));
+        } finally {
+            @unlink($contentPath);
+            @unlink($destinationPath);
+        }
+    }
+
+    public function testExistingCacheKeyBasedArtifactRemainsReadable(): void
+    {
+        $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), 3600);
+        $cacheKey = 'legacy-cache-key';
+        $contentPath = $this->createContentFile('SELECT 1;');
+        $manifest = $storage->store($cacheKey, $contentPath, [
+            'source_url' => 'https://source.example.test',
+            'source_blog_id' => 1,
+            'source_table_prefix' => 'wp_',
+        ]);
+        $legacyArtifactId = substr(hash('sha256', $cacheKey), 0, 32);
+        $manifestPath = $this->storageDirectory . '/' . $manifest->artifactId . '.json';
+        $payloadPath = $this->storageDirectory . '/' . $manifest->artifactId . '.bin';
+        $legacyManifestPath = $this->storageDirectory . '/' . $legacyArtifactId . '.json';
+        $legacyPayloadPath = $this->storageDirectory . '/' . $legacyArtifactId . '.bin';
+        $manifestData = json_decode((string) file_get_contents($manifestPath), true, flags: JSON_THROW_ON_ERROR);
+        $manifestData['artifact_id'] = $legacyArtifactId;
+        file_put_contents($legacyManifestPath, json_encode($manifestData, JSON_THROW_ON_ERROR));
+        rename($payloadPath, $legacyPayloadPath);
+        unlink($manifestPath);
+        unlink($this->storageDirectory . '/' . substr(hash('sha256', $cacheKey), 0, 32) . '.current.json');
+        $destinationPath = $this->createContentFile('');
+
+        try {
+            $this->assertSame($legacyArtifactId, $storage->getFresh($cacheKey)?->artifactId);
+            $storage->writeContentToFile($legacyArtifactId, $destinationPath);
+
+            $this->assertSame('SELECT 1;', file_get_contents($destinationPath));
+        } finally {
+            @unlink($contentPath);
+            @unlink($destinationPath);
+        }
+    }
+
     public function testExpiredArtifactCannotBeRetrieved(): void
     {
         $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), -1);
@@ -58,6 +150,20 @@ class EncryptedArtifactStorageTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         $storage->writeContentToFile($manifest->artifactId, $this->createContentFile(''));
+    }
+
+    public function testExpiredArtifactsAreRemovedDuringCacheLookup(): void
+    {
+        $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), -1);
+        $manifest = $storage->store('cache-key', $this->createContentFile('SELECT 1;'), [
+            'source_url' => 'https://source.example.test',
+            'source_blog_id' => 1,
+            'source_table_prefix' => 'wp_',
+        ]);
+
+        $this->assertNull($storage->getFresh('cache-key'));
+        $this->assertFileDoesNotExist($this->storageDirectory . '/' . $manifest->artifactId . '.json');
+        $this->assertFileDoesNotExist($this->storageDirectory . '/' . $manifest->artifactId . '.bin');
     }
 
     public function testArtifactWithMismatchedManifestChecksumCannotBeWritten(): void

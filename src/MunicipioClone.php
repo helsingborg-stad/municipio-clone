@@ -50,6 +50,7 @@ class MunicipioClone
             Config::storageDirectory(),
             Config::encryptionKey(),
             Config::cacheTtl(),
+            Config::artifactRetention(),
         );
         $dataWasher = new DataWasher((new WasherRegistry($this->wpService))->all(), new FakeDataGenerator());
         $exportService = new ExportService(

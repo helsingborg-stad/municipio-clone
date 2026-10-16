@@ -14,6 +14,13 @@ class Config
         return defined('MUNICIPIO_CLONE_CACHE_TTL') ? (int) MUNICIPIO_CLONE_CACHE_TTL : 3600;
     }
 
+    public static function artifactRetention(): int
+    {
+        return defined('MUNICIPIO_CLONE_ARTIFACT_RETENTION')
+            ? max(0, (int) MUNICIPIO_CLONE_ARTIFACT_RETENTION)
+            : 3600;
+    }
+
     public static function forceWindow(): int
     {
         return defined('MUNICIPIO_CLONE_FORCE_WINDOW') ? (int) MUNICIPIO_CLONE_FORCE_WINDOW : 600;
