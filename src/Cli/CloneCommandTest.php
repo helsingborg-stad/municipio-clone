@@ -106,6 +106,7 @@ SQL),
                 'url' => 'https://target.example.test/site',
                 'blog_id' => 3,
                 'table_prefix' => 'wp_3_',
+                'siteurl' => 'https://target.example.test/site/wp',
             ]);
 
         $importer = $this->createMock(DatabaseImporter::class);
@@ -127,11 +128,13 @@ SQL),
                 'https://source.example.test',
                 true,
                 'https://media.example.test/uploads',
+                'https://target.example.test/site/wp',
             )
-            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, string $sourceMediaBaseUrl): void {
+            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, string $sourceMediaBaseUrl, string $targetSiteUrl): void {
                 self::assertSame('https://source.example.test', $sourceUrl);
                 self::assertTrue($keepRemoteMediaUrls);
                 self::assertSame('https://media.example.test/uploads', $sourceMediaBaseUrl);
+                self::assertSame('https://target.example.test/site/wp', $targetSiteUrl);
                 $stageRunner('database_import', 'Importing SQL into the target database', static fn(): null => null);
                 $stageRunner('table_discovery', 'Discovering imported database tables', static fn(): null => null);
                 $stageRunner('remote_media_url_restoration', 'Keeping remote media URLs', static fn(): null => null);

@@ -57,6 +57,7 @@ class BatchCloneCommandTest extends TestCase
 
         $this->assertCount(2, $cloneCommand->calls);
         $this->assertSame('https://one.example.test', $cloneCommand->calls[0]['source-url']);
+        $this->assertSame('https://one-target.example.test/wp', $cloneCommand->calls[0]['target-siteurl']);
         $this->assertSame('https://two.example.test', $cloneCommand->calls[1]['source-url']);
         $this->assertSame('municipio_clone_batch_completed', $logger->entries[2][0]);
         $this->assertSame(0, $logger->entries[2][1]['failure_count']);
@@ -150,7 +151,7 @@ class BatchCloneCommandTest extends TestCase
     private function mappings(): array
     {
         return [
-            new CloneMapping('https://one.example.test', 'https://one-target.example.test', 'MUNICIPIO_CLONE_BATCH_USER', 'MUNICIPIO_CLONE_BATCH_PASSWORD', false, false),
+            new CloneMapping('https://one.example.test', 'https://one-target.example.test', 'MUNICIPIO_CLONE_BATCH_USER', 'MUNICIPIO_CLONE_BATCH_PASSWORD', false, false, 'https://one-target.example.test/wp'),
             new CloneMapping('https://two.example.test', 'https://two-target.example.test', 'MUNICIPIO_CLONE_BATCH_USER', 'MUNICIPIO_CLONE_BATCH_PASSWORD', true, true),
         ];
     }

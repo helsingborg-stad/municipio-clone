@@ -53,6 +53,7 @@ class BatchConfigurationLoader
                 $this->requiredEnvironmentVariable($mapping, 'application_password_env', $index),
                 $this->optionalBoolean($mapping, 'force', $index),
                 $this->optionalBoolean($mapping, 'keep_remote_media_urls', $index),
+                array_key_exists('target_siteurl', $mapping) ? $this->requiredUrl($mapping, 'target_siteurl', $index) : null,
             );
         }
 
@@ -64,6 +65,7 @@ class BatchConfigurationLoader
         $allowedKeys = [
             'source_url',
             'target',
+            'target_siteurl',
             'username_env',
             'application_password_env',
             'force',
