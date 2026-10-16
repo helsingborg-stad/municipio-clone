@@ -99,6 +99,7 @@ class CloneCommand
                     $sourceUrl,
                     $keepRemoteMediaUrls,
                     (string) ($manifest['source_media_base_url'] ?? ''),
+                    (string) ($targetSite['siteurl'] ?? $targetSite['url']),
                 );
             } finally {
                 @unlink($artifactPath);

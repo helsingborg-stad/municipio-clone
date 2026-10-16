@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MunicipioClone\Import;
 
+use MunicipioClone\Database\StoredSiteOptions;
 use WpService\WpService;
 
 /**
@@ -11,18 +12,23 @@ use WpService\WpService;
  */
 class TargetSiteManager
 {
-    public function __construct(private WpService $wpService)
+    public function __construct(private WpService $wpService, private ?StoredSiteOptions $storedSiteOptions = null)
     {
     }
 
     public function prepare(string $targetUrl, array $associativeArguments = []): array
     {
+        $explicitSiteUrl = $associativeArguments['target-siteurl'] ?? null;
+        if ($explicitSiteUrl !== null) {
+            $this->assertUrl((string) $explicitSiteUrl);
+        }
         $blogId = $this->wpService->getCurrentBlogId();
         if (!$this->wpService->isMultisite()) {
             return [
                 'url' => $targetUrl,
                 'blog_id' => $blogId,
                 'table_prefix' => $this->getBlogPrefix($blogId),
+                'siteurl' => $this->resolveSiteUrl($blogId, $targetUrl, $explicitSiteUrl),
             ];
         }
 
@@ -59,6 +65,7 @@ class TargetSiteManager
                     'url' => $targetUrl,
                     'blog_id' => (int) ($site->blog_id ?? $blogId),
                     'table_prefix' => $this->getBlogPrefix((int) ($site->blog_id ?? $blogId)),
+                    'siteurl' => $this->resolveSiteUrl((int) ($site->blog_id ?? $blogId), $targetUrl, $explicitSiteUrl),
                 ];
             }
         }
@@ -74,6 +81,7 @@ class TargetSiteManager
             }
 
             $siteId = (int) ($site->blog_id ?? $blogId);
+            $siteUrl = $this->resolveSiteUrl($siteId, $targetUrl, $explicitSiteUrl);
             $updateResult = $this->wpService->wpUpdateSite($siteId, [
                 'domain' => $domain,
                 'path' => $path,
@@ -87,6 +95,7 @@ class TargetSiteManager
                 'url' => $targetUrl,
                 'blog_id' => $siteId,
                 'table_prefix' => $this->getBlogPrefix($siteId),
+                'siteurl' => $siteUrl,
             ];
         }
 
@@ -103,7 +112,55 @@ class TargetSiteManager
             'url' => $targetUrl,
             'blog_id' => (int) $createdBlogId,
             'table_prefix' => $this->getBlogPrefix((int) $createdBlogId),
+            'siteurl' => $explicitSiteUrl === null ? rtrim($targetUrl, '/') : rtrim((string) $explicitSiteUrl, '/'),
         ];
+    }
+
+    private function resolveSiteUrl(int $blogId, string $targetUrl, mixed $explicitSiteUrl): string
+    {
+        if ($explicitSiteUrl !== null) {
+            return rtrim((string) $explicitSiteUrl, '/');
+        }
+
+        $storedOptions = $this->storedSiteOptions ?? new StoredSiteOptions();
+        $home = $storedOptions->get($blogId, 'home');
+        $siteUrl = $storedOptions->get($blogId, 'siteurl');
+        if ($siteUrl === null || $siteUrl === '') {
+            return rtrim($targetUrl, '/');
+        }
+        $home = rtrim((string) $home, '/');
+        $siteUrl = rtrim($siteUrl, '/');
+        if ($home === '') {
+            throw new \RuntimeException('Cannot infer target siteurl without a stored home URL. Pass --target-siteurl.');
+        }
+        $this->assertUrl($home);
+        $this->assertUrl($siteUrl);
+        $homeParts = parse_url($home);
+        $siteParts = parse_url($siteUrl);
+        if (
+            $homeParts['scheme'] !== $siteParts['scheme']
+            || $homeParts['host'] !== $siteParts['host']
+            || ($homeParts['port'] ?? null) !== ($siteParts['port'] ?? null)
+            || !str_starts_with($siteUrl, $home)
+            || !in_array(substr($siteUrl, strlen($home), 1), ['', '/'], true)
+        ) {
+            throw new \RuntimeException('Cannot safely infer target siteurl from the existing home and siteurl. Pass --target-siteurl.');
+        }
+
+        return rtrim($targetUrl, '/') . substr($siteUrl, strlen($home));
+    }
+
+    private function assertUrl(string $url): void
+    {
+        $parts = parse_url($url);
+        if (
+            $parts === false || !isset($parts['host'], $parts['scheme'])
+            || !in_array(strtolower($parts['scheme']), ['http', 'https'], true)
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+            || filter_var($url, FILTER_VALIDATE_URL) === false
+        ) {
+            throw new \InvalidArgumentException('Target siteurl must be an absolute HTTP(S) URL without credentials, query or fragment.');
+        }
     }
 
     private function getBlogPrefix(int $blogId): string

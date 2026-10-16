@@ -24,6 +24,7 @@ class CloneMapping
         private readonly string $applicationPasswordEnvironmentVariable,
         public readonly bool $force,
         public readonly bool $keepRemoteMediaUrls,
+        public readonly ?string $targetSiteUrl = null,
     ) {
     }
 
@@ -48,6 +49,7 @@ class CloneMapping
         return array_filter([
             'source-url' => $this->sourceUrl,
             'target' => $this->targetUrl,
+            'target-siteurl' => $this->targetSiteUrl,
             'username' => $username,
             'application-password' => $applicationPassword,
             'force' => $this->force ?: null,
