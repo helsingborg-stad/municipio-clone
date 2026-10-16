@@ -105,4 +105,29 @@ class TargetSiteManagerTest extends TestCase
         (new TargetSiteManager($wpService, new FakeStoredSiteOptions($wpService)))
             ->prepare('https://department.example.test', ['yes' => true]);
     }
+
+    public function testSingleSitePreservesItsDistinctInstallationUrl(): void
+    {
+        $wpService = new MutableWpService();
+        $wpService->options[1] = [
+            'home' => 'http://old.example.test',
+            'siteurl' => 'http://old.example.test/wp',
+        ];
+
+        $result = (new TargetSiteManager($wpService, new FakeStoredSiteOptions($wpService)))
+            ->prepare('https://new.example.test:8443');
+
+        $this->assertSame('https://new.example.test:8443/wp', $result['siteurl']);
+        $this->assertSame(1, $result['blog_id']);
+    }
+
+    public function testRejectsInvalidExplicitInstallationUrl(): void
+    {
+        $wpService = new MutableWpService();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Target siteurl must be an absolute HTTP(S) URL');
+        (new TargetSiteManager($wpService, new FakeStoredSiteOptions($wpService)))
+            ->prepare('https://department.example.test', ['target-siteurl' => 'javascript:alert(1)']);
+    }
 }

@@ -62,6 +62,7 @@ class DatabaseImporterTest extends TestCase
         };
 
         $wpService = new MutableWpService();
+        $wpService->options[3]['siteurl'] = 'http://localhost:8080/hbgtest/wp';
         (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
@@ -130,8 +131,14 @@ class DatabaseImporterTest extends TestCase
                     }
                 };
                 $wpService->options[3]['siteurl'] = 'https://department.example.test/wp';
-                $storedOptions = new FakeStoredSiteOptions($wpService);
-                $storedOptions->failWrites = true;
+                $storedOptions = new class($wpService) extends FakeStoredSiteOptions {
+                    public function set(int $blogId, string $name, string $value): void
+                    {
+                        if ($name !== 'siteurl') {
+                            parent::set($blogId, $name, $value);
+                        }
+                    }
+                };
                 $runner = new class() extends WpCliRunner {
                     public function run(string $command): string { return ''; }
                 };
@@ -143,7 +150,7 @@ class DatabaseImporterTest extends TestCase
                 };
 
                 $this->expectException(\RuntimeException::class);
-                $this->expectExceptionMessage('Could not store target option');
+                $this->expectExceptionMessage('Target option "siteurl" is stored as "https://department.example.test/wp" instead of "https://department.example.test"');
                 (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), $storedOptions))
                     ->import('/tmp/export.sql', 'https://department.example.test', 3, 'wp_3_');
             }

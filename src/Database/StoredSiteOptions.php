@@ -9,6 +9,9 @@ namespace MunicipioClone\Database;
  */
 class StoredSiteOptions
 {
+    /**
+     * Returns the stored value without applying WordPress option filters.
+     */
     public function get(int $blogId, string $name): ?string
     {
         global $wpdb;
@@ -21,6 +24,9 @@ class StoredSiteOptions
         return $value === null ? null : (string) $value;
     }
 
+    /**
+     * Writes the option directly and checks the persisted value.
+     */
     public function set(int $blogId, string $name, string $value): void
     {
         global $wpdb;
@@ -35,6 +41,9 @@ class StoredSiteOptions
         }
     }
 
+    /**
+     * Resolves the options table for the requested site.
+     */
     private function table(int $blogId): string
     {
         global $wpdb;

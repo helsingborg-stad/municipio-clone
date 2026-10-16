@@ -13,15 +13,24 @@ class FakeStoredSiteOptions extends StoredSiteOptions
 {
     public bool $failWrites = false;
 
+    /**
+     * Keeps fake rows alongside the mutable service's options state.
+     */
     public function __construct(private MutableWpService $wpService)
     {
     }
 
+    /**
+     * Returns an unfiltered fake row.
+     */
     public function get(int $blogId, string $name): ?string
     {
         return $this->wpService->options[$blogId][$name] ?? null;
     }
 
+    /**
+     * Stores a fake row unless database writes are disabled.
+     */
     public function set(int $blogId, string $name, string $value): void
     {
         if ($this->failWrites) {

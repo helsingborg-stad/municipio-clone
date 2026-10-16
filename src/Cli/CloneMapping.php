@@ -16,6 +16,7 @@ class CloneMapping
      * @param string $applicationPasswordEnvironmentVariable Environment variable containing the source application password.
      * @param bool $force Whether to request a fresh remote export.
      * @param bool $keepRemoteMediaUrls Whether to retain remote media URLs.
+     * @param ?string $targetSiteUrl Explicit WordPress installation URL.
      */
     public function __construct(
         public readonly string $sourceUrl,

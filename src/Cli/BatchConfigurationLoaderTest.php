@@ -18,6 +18,7 @@ class BatchConfigurationLoaderTest extends TestCase
             'mappings' => [[
                 'source_url' => 'https://production.example.test/',
                 'target' => 'https://staging.example.test/',
+                'target_siteurl' => 'https://staging.example.test/wp/',
                 'username_env' => 'MUNICIPIO_CLONE_TEST_USERNAME',
                 'application_password_env' => 'MUNICIPIO_CLONE_TEST_PASSWORD',
                 'force' => true,
@@ -40,12 +41,33 @@ class BatchConfigurationLoaderTest extends TestCase
         $this->assertSame([
             'source-url' => 'https://production.example.test',
             'target' => 'https://staging.example.test',
+            'target-siteurl' => 'https://staging.example.test/wp',
             'username' => 'clone-user',
             'application-password' => 'clone-password',
             'force' => true,
             'keep-remote-media-urls' => true,
             'yes' => true,
         ], $arguments);
+    }
+
+    public function testRejectsInvalidInstallationUrlInMapping(): void
+    {
+        $path = $this->createConfigurationFile([
+            'mappings' => [[
+                'source_url' => 'https://production.example.test',
+                'target' => 'https://staging.example.test',
+                'target_siteurl' => 'not-a-url',
+                'username_env' => 'SITE_USER',
+                'application_password_env' => 'SITE_PASSWORD',
+            ]],
+        ]);
+        try {
+            $this->expectException(\InvalidArgumentException::class);
+            $this->expectExceptionMessage('target_siteurl');
+            (new BatchConfigurationLoader())->load($path);
+        } finally {
+            @unlink($path);
+        }
     }
 
     public function testRejectsLiteralCredentialFields(): void
