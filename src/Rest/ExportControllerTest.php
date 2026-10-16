@@ -48,7 +48,7 @@ class ExportControllerTest extends TestCase
                 return true;
             }
         };
-        $controller = new ExportController($wpService, $this->createMock(ExportService::class), $storage);
+        $controller = new ExportController($wpService, $this->createStub(ExportService::class), $storage);
         $request = new class($artifactId) {
             public function __construct(private string $artifactId)
             {

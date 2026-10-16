@@ -36,7 +36,7 @@ class ExportServiceTest extends TestCase
             {
             }
         };
-        $generator = $this->createMock(SqlExportGenerator::class);
+        $generator = $this->createStub(SqlExportGenerator::class);
         $generator->method('generate')->willReturn([
             'content_path' => $this->createContentFile('SQL'),
             'source_url' => 'https://source.example.test',
@@ -76,7 +76,7 @@ class ExportServiceTest extends TestCase
             {
             }
         };
-        $generator = $this->createMock(SqlExportGenerator::class);
+        $generator = $this->createStub(SqlExportGenerator::class);
         $logger = new class() implements LoggerInterface {
             public array $entries = [];
             public function info(string $message, array $context = []): void
@@ -109,7 +109,7 @@ class ExportServiceTest extends TestCase
             {
             }
         };
-        $generator = $this->createMock(SqlExportGenerator::class);
+        $generator = $this->createStub(SqlExportGenerator::class);
         $generator->method('generate')->willReturn([
             'content_path' => $this->createContentFile('SQL'),
             'source_url' => 'https://source.example.test',

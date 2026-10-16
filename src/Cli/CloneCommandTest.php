@@ -20,19 +20,6 @@ class CloneCommandTest extends TestCase
 {
     public function testHandleRejectsUnsafeEnvironment(): void
     {
-        $command = new CloneCommand(
-            $this->createMock(TargetEnvironmentGuard::class),
-            static fn(string $username, string $applicationPassword): RemoteExportClient => throw new \RuntimeException('should not build client'),
-            $this->createMock(TargetSiteManager::class),
-            $this->createMock(TablePrefixRemapper::class),
-            $this->createMock(DatabaseImporter::class),
-            new class() implements LoggerInterface {
-                public function info(string $message, array $context = []): void
-                {
-                }
-            },
-        );
-
         $guard = new class() extends TargetEnvironmentGuard {
             public function assertSafe(): void
             {
@@ -40,12 +27,21 @@ class CloneCommandTest extends TestCase
             }
         };
 
-        $reflection = new \ReflectionClass($command);
-        $property = $reflection->getProperty('environmentGuard');
-        $property->setAccessible(true);
-        $property->setValue($command, $guard);
+        $command = new CloneCommand(
+            $guard,
+            static fn(string $username, string $applicationPassword): RemoteExportClient => throw new \RuntimeException('should not build client'),
+            $this->createStub(TargetSiteManager::class),
+            $this->createStub(TablePrefixRemapper::class),
+            $this->createStub(DatabaseImporter::class),
+            new class() implements LoggerInterface {
+                public function info(string $message, array $context = []): void
+                {
+                }
+            },
+        );
 
         $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('blocked');
         $command->handle([], ['source-url' => 'https://source.example.test', 'target' => 'https://target.example.test', 'username' => 'admin', 'application-password' => 'app-password']);
     }
 
@@ -53,10 +49,10 @@ class CloneCommandTest extends TestCase
     {
         $command = new CloneCommand(
             new TargetEnvironmentGuard(),
-            fn(string $username, string $applicationPassword): RemoteExportClient => $this->createMock(RemoteExportClient::class),
-            $this->createMock(TargetSiteManager::class),
-            $this->createMock(TablePrefixRemapper::class),
-            $this->createMock(DatabaseImporter::class),
+            fn(string $username, string $applicationPassword): RemoteExportClient => $this->createStub(RemoteExportClient::class),
+            $this->createStub(TargetSiteManager::class),
+            $this->createStub(TablePrefixRemapper::class),
+            $this->createStub(DatabaseImporter::class),
             new class() implements LoggerInterface {
                 public function info(string $message, array $context = []): void
                 {
