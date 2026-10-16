@@ -15,6 +15,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 ## Configuration
 
 - `MUNICIPIO_CLONE_CACHE_TTL` - Cache lifetime for generated export artifacts in seconds. Defaults to `3600` (1 hour).
+- `MUNICIPIO_CLONE_ARTIFACT_RETENTION` - Additional time in seconds to keep an artifact downloadable after its cache expires. This allows clones that already received its manifest to finish downloading while a newer export is generated. Defaults to `3600` (1 hour).
 - `MUNICIPIO_CLONE_FORCE_WINDOW` - Minimum number of seconds between forced regenerations for the same source site. Defaults to `600` (10 minutes).
 - `MUNICIPIO_CLONE_STORAGE_PATH` - Absolute directory path where encrypted export artifacts are stored. Defaults to a directory outside the web root when `ABSPATH` is available.
 - `MUNICIPIO_CLONE_ENCRYPTION_KEY` - Encryption key used to protect cached export artifacts at rest. If not set, the plugin falls back to `AUTH_KEY`; one of these must be available.
@@ -40,9 +41,11 @@ wp municipio clone \
 
 1. The command verifies that the target environment is safe, then resolves the target URL. On multisite installations, it creates the target subsite when needed; importing into an existing subsite requires confirmation.
 2. It authenticates against the source REST API with the supplied Application Password. The source checks that the user has the `municipio_clone_export` capability.
-3. The source generates a SQL export, applies the configured washer rules to mask supported personal and form data, and replaces source URLs with the neutral placeholder URL. The encrypted artifact is cached until its TTL expires. `--force` requests a new export, subject to the forced-regeneration window.
+3. The source generates a SQL export, applies the configured washer rules to mask supported personal and form data, and replaces source URLs with the neutral placeholder URL. Each encrypted artifact has its own immutable ID. The source caches a pointer to the current artifact until its TTL expires, while keeping older artifacts available through their retention period so concurrent clones can finish downloading. `--force` requests a new export, subject to the forced-regeneration window.
 4. The target downloads the artifact, remaps its database table prefixes to the target site, and imports the SQL.
 5. The command replaces the placeholder URL with `--target` in the imported tables, then normalizes the target site's `home` and `siteurl` options.
+
+The immutable-artifact behavior is provided by the source site's plugin; existing clone clients remain compatible because the manifest and download URL contract is unchanged.
 
 Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`. On multisite, attachment URLs retain the source site's uploads path; all other source URLs are still replaced with `--target`.
 
