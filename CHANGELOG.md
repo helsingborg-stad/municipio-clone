@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+* Keep export artifacts immutable so concurrent clones from the same source can download different snapshots safely.
+
 ## [1.5.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.4...v1.5.0) (2026-10-05)
 
 
