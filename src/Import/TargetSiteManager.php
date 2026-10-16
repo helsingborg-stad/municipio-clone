@@ -116,6 +116,9 @@ class TargetSiteManager
         ];
     }
 
+    /**
+     * Resolves the installation URL from an override or the pre-import stored URL relationship.
+     */
     private function resolveSiteUrl(int $blogId, string $targetUrl, mixed $explicitSiteUrl): string
     {
         if ($explicitSiteUrl !== null) {
@@ -133,8 +136,12 @@ class TargetSiteManager
         if ($home === '') {
             throw new \RuntimeException('Cannot infer target siteurl without a stored home URL. Pass --target-siteurl.');
         }
-        $this->assertUrl($home);
-        $this->assertUrl($siteUrl);
+        try {
+            $this->assertUrl($home);
+            $this->assertUrl($siteUrl);
+        } catch (\InvalidArgumentException $exception) {
+            throw new \RuntimeException('Cannot safely infer target siteurl from stored options. Pass --target-siteurl.', 0, $exception);
+        }
         $homeParts = parse_url($home);
         $siteParts = parse_url($siteUrl);
         if (
@@ -150,6 +157,9 @@ class TargetSiteManager
         return rtrim($targetUrl, '/') . substr($siteUrl, strlen($home));
     }
 
+    /**
+     * Rejects unsafe or ambiguous installation URLs.
+     */
     private function assertUrl(string $url): void
     {
         $parts = parse_url($url);

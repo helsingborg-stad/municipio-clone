@@ -20,6 +20,9 @@ class StoredSiteOptions
             sprintf('SELECT option_value FROM `%s` WHERE option_name = %%s', $this->table($blogId)),
             $name,
         ));
+        if (($wpdb->last_error ?? '') !== '') {
+            throw new \RuntimeException(sprintf('Could not read stored target option "%s". Check the target database.', $name));
+        }
 
         return $value === null ? null : (string) $value;
     }
