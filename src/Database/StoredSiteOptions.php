@@ -16,7 +16,7 @@ class StoredSiteOptions
     {
         global $wpdb;
 
-        $value = $wpdb->get_var($wpdb->prepare(
+        $row = $wpdb->get_row($wpdb->prepare(
             sprintf('SELECT option_value FROM `%s` WHERE option_name = %%s', $this->table($blogId)),
             $name,
         ));
@@ -24,7 +24,7 @@ class StoredSiteOptions
             throw new \RuntimeException(sprintf('Could not read stored target option "%s". Check the target database.', $name));
         }
 
-        return $value === null ? null : (string) $value;
+        return $row === null ? null : (string) $row->option_value;
     }
 
     /**
