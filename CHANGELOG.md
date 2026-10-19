@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.3...v1.5.4) (2026-10-19)
+
+
+### Bug Fixes
+
+* **clone:** flush target rewrite rules after import ([#37](https://github.com/helsingborg-stad/municipio-clone/issues/37)) ([e5cc98d](https://github.com/helsingborg-stad/municipio-clone/commit/e5cc98d7df24b21eb4b6ea93d00ea37103baf9c7))
+
 ## [1.5.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.2...v1.5.3) (2026-10-19)
 
 
