@@ -144,6 +144,22 @@ class CloneCommand
                 @unlink($artifactPath);
             }
 
+            try {
+                $this->runStage(
+                    'rewrite_flush',
+                    'Flushing target rewrite rules',
+                    fn() => $this->databaseImporter->flushTargetRewriteRules((string) $targetSite['url']),
+                );
+            } catch (\RuntimeException $throwable) {
+                $this->failedStageLabel = null;
+                \WP_CLI::warning(sprintf(
+                    'Cloned %s to %s, but could not flush its rewrite rules: %s',
+                    $sourceUrl,
+                    $targetSite['url'],
+                    $throwable->getMessage(),
+                ));
+            }
+
             $this->logger->info('municipio_clone_import_completed', [
                 'source' => $sourceUrl,
                 'target' => $targetSite['url'],

@@ -67,6 +67,7 @@ class CloneCommandTest extends TestCase
     public function testHandleDownloadsRemapsAndImportsArtifact(): void
     {
         \WP_CLI::$logMessages = [];
+        \WP_CLI::$warningMessages = [];
         $previousEnvironment = getenv('WP_ENVIRONMENT_TYPE');
         putenv('WP_ENVIRONMENT_TYPE=local');
         $artifactPath = tempnam(sys_get_temp_dir(), 'municipio-clone-test-');
@@ -110,6 +111,9 @@ SQL),
             ]);
 
         $importer = $this->createMock(DatabaseImporter::class);
+        $importer->expects($this->once())
+            ->method('flushTargetRewriteRules')
+            ->with('https://target.example.test/site');
         $importer->expects($this->once())
             ->method('import')
             ->with(
@@ -175,7 +179,126 @@ SQL),
             'Replacing source URLs in imported data...',
             'Normalizing target home and site URLs...',
             'Configuring remote media URLs...',
+            'Flushing target rewrite rules...',
         ], \WP_CLI::$logMessages);
+        $this->assertSame([], \WP_CLI::$warningMessages);
+    }
+
+    public function testFlushFailureWarnsWithoutFailingCompletedClone(): void
+    {
+        \WP_CLI::$warningMessages = [];
+        \WP_CLI::$successMessages = [];
+        $previousEnvironment = getenv('WP_ENVIRONMENT_TYPE');
+        putenv('WP_ENVIRONMENT_TYPE=local');
+        $artifactPath = tempnam(sys_get_temp_dir(), 'municipio-clone-test-');
+        file_put_contents($artifactPath, 'CREATE TABLE `wp_posts` ();');
+        $client = $this->createStub(RemoteExportClient::class);
+        $client->method('requestExport')->willReturn(['source_table_prefix' => 'wp_']);
+        $client->method('downloadArtifact')->willReturn($artifactPath);
+        $siteManager = $this->createStub(TargetSiteManager::class);
+        $siteManager->method('prepare')->willReturn([
+            'url' => 'http://localhost:8080/dunkerskulturhus',
+            'blog_id' => 3,
+            'table_prefix' => 'wp_3_',
+        ]);
+        $importer = $this->createMock(DatabaseImporter::class);
+        $importer->expects($this->once())->method('import');
+        $importer->expects($this->once())
+            ->method('flushTargetRewriteRules')
+            ->with('http://localhost:8080/dunkerskulturhus')
+            ->willThrowException(new \RuntimeException('Rewrite command exited with status 1.'));
+        $logger = new class() implements LoggerInterface {
+            public array $entries = [];
+
+            public function info(string $message, array $context = []): void
+            {
+                $this->entries[] = [$message, $context];
+            }
+        };
+        $command = new CloneCommand(
+            new TargetEnvironmentGuard(),
+            static fn(string $username, string $applicationPassword): RemoteExportClient => $client,
+            $siteManager,
+            new TablePrefixRemapper(),
+            $importer,
+            $logger,
+        );
+
+        try {
+            $command->handle([], [
+                'source-url' => 'https://source.example.test',
+                'target' => 'http://localhost:8080/dunkerskulturhus',
+                'username' => 'admin',
+                'application-password' => 'app-password',
+            ]);
+        } finally {
+            putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
+        }
+
+        $this->assertFileDoesNotExist($artifactPath);
+        $this->assertSame([
+            'Cloned https://source.example.test to http://localhost:8080/dunkerskulturhus, but could not flush its rewrite rules: Rewrite command exited with status 1.',
+        ], \WP_CLI::$warningMessages);
+        $this->assertCount(1, \WP_CLI::$successMessages);
+        $failedStages = array_values(array_filter(
+            $logger->entries,
+            static fn(array $entry): bool => $entry[0] === 'municipio_clone_stage_failed',
+        ));
+        $this->assertCount(1, $failedStages);
+        $this->assertSame('rewrite_flush', $failedStages[0][1]['stage']);
+        $this->assertSame('municipio_clone_import_completed', $logger->entries[array_key_last($logger->entries)][0]);
+    }
+
+    public function testFailedImportNeverFlushesTargetRewriteRules(): void
+    {
+        \WP_CLI::$warningMessages = [];
+        $previousEnvironment = getenv('WP_ENVIRONMENT_TYPE');
+        putenv('WP_ENVIRONMENT_TYPE=local');
+        $artifactPath = tempnam(sys_get_temp_dir(), 'municipio-clone-test-');
+        file_put_contents($artifactPath, 'CREATE TABLE `wp_posts` ();');
+        $client = $this->createStub(RemoteExportClient::class);
+        $client->method('requestExport')->willReturn(['source_table_prefix' => 'wp_']);
+        $client->method('downloadArtifact')->willReturn($artifactPath);
+        $siteManager = $this->createStub(TargetSiteManager::class);
+        $siteManager->method('prepare')->willReturn([
+            'url' => 'http://localhost:8080/dunkerskulturhus',
+            'blog_id' => 3,
+            'table_prefix' => 'wp_3_',
+        ]);
+        $importer = $this->createMock(DatabaseImporter::class);
+        $importer->expects($this->once())
+            ->method('import')
+            ->willThrowException(new \RuntimeException('SQL import failed.'));
+        $importer->expects($this->never())->method('flushTargetRewriteRules');
+        $command = new CloneCommand(
+            new TargetEnvironmentGuard(),
+            static fn(string $username, string $applicationPassword): RemoteExportClient => $client,
+            $siteManager,
+            new TablePrefixRemapper(),
+            $importer,
+            new class() implements LoggerInterface {
+                public function info(string $message, array $context = []): void
+                {
+                }
+            },
+        );
+
+        try {
+            $command->handle([], [
+                'source-url' => 'https://source.example.test',
+                'target' => 'http://localhost:8080/dunkerskulturhus',
+                'username' => 'admin',
+                'application-password' => 'app-password',
+            ]);
+            $this->fail('Expected the import to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('SQL import failed.', $exception->getMessage());
+        } finally {
+            putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
+        }
+
+        $this->assertFileDoesNotExist($artifactPath);
+        $this->assertSame([], \WP_CLI::$warningMessages);
     }
 
     public function testHandleReportsTheStageThatFailed(): void

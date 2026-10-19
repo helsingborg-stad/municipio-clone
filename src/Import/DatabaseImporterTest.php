@@ -17,6 +17,28 @@ use PHPUnit\Framework\TestCase;
  */
 class DatabaseImporterTest extends TestCase
 {
+    public function testFlushesOnlyTheTargetUrlInAFreshProcessWithoutHardFlush(): void
+    {
+        $runner = new class() extends WpCliRunner {
+            public array $commands = [];
+
+            public function runInFreshProcess(string $command): string
+            {
+                $this->commands[] = $command;
+
+                return 'Success: Flushed rewrite rules.';
+            }
+        };
+        $wpService = new MutableWpService();
+        $databaseConnection = $this->createStub(DatabaseConnectionInterface::class);
+        $importer = new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService));
+
+        $importer->flushTargetRewriteRules('http://localhost:8080/dunkerskulturhus/');
+
+        $this->assertSame(["rewrite flush --url='http://localhost:8080/dunkerskulturhus/'"], $runner->commands);
+        $this->assertSame(1, $wpService->currentBlogId);
+    }
+
     public function testReportsEachImportSubstage(): void
     {
         $runner = new class() extends WpCliRunner {
