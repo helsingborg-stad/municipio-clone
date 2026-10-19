@@ -12,6 +12,75 @@ use PHPUnit\Framework\TestCase;
  */
 class WpCliRunnerTest extends TestCase
 {
+    public function testStreamsArtifactAndReportsBytesUntilChildCompletes(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'municipio_clone_stream_test_');
+        $sql = str_repeat("SELECT 'payload';\n", 8000);
+        file_put_contents($path, $sql);
+        $runner = new class() extends WpCliRunner {
+            protected function importCommand(): array
+            {
+                return [PHP_BINARY, '-r', 'fwrite(STDOUT, str_repeat("x", 131072)); while (!feof(STDIN)) { $chunk = fread(STDIN, 16384); if ($chunk === false) { exit(3); } } fwrite(STDOUT, "Done");'];
+            }
+        };
+        $updates = [];
+
+        try {
+            $runner->importFromStream($path, static function (int $sent, int $total, bool $waiting) use (&$updates): void {
+                $updates[] = [$sent, $total, $waiting];
+            });
+
+            $this->assertSame([0, strlen($sql), false], $updates[0]);
+            $this->assertContains([strlen($sql), strlen($sql), true], $updates);
+            $this->assertGreaterThan(2, count($updates));
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    public function testStreamingImportReportsChildFailureWithoutClaimingSuccess(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'municipio_clone_stream_test_');
+        file_put_contents($path, 'SELECT 1;');
+        $runner = new class() extends WpCliRunner {
+            protected function importCommand(): array
+            {
+                return [PHP_BINARY, '-r', 'fwrite(STDERR, "Import rejected."); exit(7);'];
+            }
+        };
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('WP-CLI database import failed with exit code 7: Import rejected.');
+            $runner->importFromStream($path, static function (int $sent, int $total, bool $waiting): void {
+            });
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    public function testStreamingImportHandlesEmptyArtifact(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'municipio_clone_stream_test_');
+        $runner = new class() extends WpCliRunner {
+            protected function importCommand(): array
+            {
+                return [PHP_BINARY, '-r', 'if (stream_get_contents(STDIN) !== "") { exit(4); }'];
+            }
+        };
+        $updates = [];
+
+        try {
+            $runner->importFromStream($path, static function (int $sent, int $total, bool $waiting) use (&$updates): void {
+                $updates[] = [$sent, $total, $waiting];
+            });
+
+            $this->assertSame([0, 0, true], $updates[0]);
+        } finally {
+            @unlink($path);
+        }
+    }
+
     protected function tearDown(): void
     {
         \WP_CLI::$runCommandResponse = null;

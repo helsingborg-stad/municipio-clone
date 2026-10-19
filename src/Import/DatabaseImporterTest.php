@@ -17,6 +17,50 @@ use PHPUnit\Framework\TestCase;
  */
 class DatabaseImporterTest extends TestCase
 {
+    public function testImportsThroughStreamingRunnerWhenProgressIsRequested(): void
+    {
+        $runner = new class() extends WpCliRunner {
+            public array $commands = [];
+
+            public function importFromStream(string $path, callable $onProgress): void
+            {
+                $this->commands[] = 'stream:' . $path;
+                $onProgress(0, 100, false);
+                $onProgress(100, 100, true);
+            }
+
+            public function run(string $command): string
+            {
+                $this->commands[] = $command;
+
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['mun_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+        $wpService = new MutableWpService();
+        $updates = [];
+
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))
+            ->import(
+                '/tmp/export.sql',
+                'http://localhost:8080/hbgtest',
+                3,
+                'mun_3_',
+                onImportProgress: static function (int $sent, int $total, bool $waiting) use (&$updates): void {
+                    $updates[] = [$sent, $total, $waiting];
+                },
+            );
+
+        $this->assertSame('stream:/tmp/export.sql', $runner->commands[0]);
+        $this->assertSame([[0, 100, false], [100, 100, true]], $updates);
+        $this->assertCount(2, $runner->commands);
+    }
+
     public function testFlushesOnlyTheTargetUrlInAFreshProcessWithoutHardFlush(): void
     {
         $runner = new class() extends WpCliRunner {

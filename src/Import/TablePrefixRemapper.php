@@ -11,17 +11,25 @@ class TablePrefixRemapper
 {
     private const CHUNK_SIZE = 1024 * 1024;
 
-    public function remapFile(string $path, string $sourcePrefix, string $targetPrefix): string
+    /**
+     * @param null|callable(int, int): void $onProgress Consumed and total input bytes.
+     */
+    public function remapFile(string $path, string $sourcePrefix, string $targetPrefix, ?callable $onProgress = null): string
     {
         if ($sourcePrefix === $targetPrefix) {
             return $path;
         }
 
         $source = fopen($path, 'rb');
+        $fileInfo = $source === false ? false : fstat($source);
+        $totalBytes = $fileInfo['size'] ?? false;
         $temporaryPath = tempnam(dirname($path), 'municipio_clone_remap_');
-        if ($source === false || $temporaryPath === false) {
+        if ($source === false || $totalBytes === false || $temporaryPath === false) {
             if (is_resource($source)) {
                 fclose($source);
+            }
+            if ($temporaryPath !== false) {
+                @unlink($temporaryPath);
             }
             throw new \RuntimeException('Failed to open the SQL artifact for prefix remapping.');
         }
@@ -33,11 +41,19 @@ class TablePrefixRemapper
             throw new \RuntimeException('Failed to open the remapped SQL artifact for writing.');
         }
 
+        $remapCompleted = false;
         try {
+            if ($onProgress !== null) {
+                $onProgress(0, $totalBytes);
+            }
             $buffer = '';
             $remapSiteKeys = false;
             $lineStarted = false;
             while (($chunk = fgets($source, self::CHUNK_SIZE)) !== false) {
+                $bytesRead = ftell($source);
+                if ($bytesRead === false) {
+                    throw new \RuntimeException('Failed to measure SQL artifact prefix remapping progress.');
+                }
                 if (!$lineStarted) {
                     $remapSiteKeys = preg_match('/^INSERT INTO `[^`]+_(options|usermeta)` /', $chunk) === 1;
                     $lineStarted = true;
@@ -55,6 +71,9 @@ class TablePrefixRemapper
                 if ($lineComplete) {
                     $lineStarted = false;
                 }
+                if ($onProgress !== null) {
+                    $onProgress($bytesRead, $totalBytes);
+                }
             }
 
             if ($buffer !== '') {
@@ -65,9 +84,13 @@ class TablePrefixRemapper
             if (!feof($source)) {
                 throw new \RuntimeException('Failed to read the SQL artifact while remapping prefixes.');
             }
+            $remapCompleted = true;
         } finally {
             fclose($source);
             fclose($destination);
+            if (!$remapCompleted) {
+                @unlink($temporaryPath);
+            }
         }
 
         if (!rename($temporaryPath, $path)) {
