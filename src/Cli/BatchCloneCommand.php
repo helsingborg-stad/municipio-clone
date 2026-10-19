@@ -26,6 +26,26 @@ class BatchCloneCommand
     }
 
     /**
+     * Runs the batch command as a WP-CLI entry point.
+     *
+     * @param array<int, string> $arguments Positional WP-CLI arguments.
+     * @param array<string, mixed> $associativeArguments Named WP-CLI arguments.
+     */
+    public function run(array $arguments, array $associativeArguments): void
+    {
+        try {
+            $this->handle($arguments, $associativeArguments);
+        } catch (\Throwable $throwable) {
+            $this->logger->info('municipio_clone_batch_command_failed', [
+                'error_type' => $throwable::class,
+                'error_message' => $throwable->getMessage(),
+                'error_trace' => $throwable->getTraceAsString(),
+            ]);
+            \WP_CLI::error($throwable->getMessage());
+        }
+    }
+
+    /**
      * @param array<int, string> $arguments Positional WP-CLI arguments.
      * @param array<string, mixed> $associativeArguments Named WP-CLI arguments.
      */
@@ -38,13 +58,17 @@ class BatchCloneCommand
         $mappingCount = count($mappings);
         foreach (array_values($mappings) as $index => $mapping) {
             $startedAt = microtime(true);
+            $cloning = false;
             try {
                 $this->writeLog(sprintf('[%d/%d] Synchronizing %s to %s', $index + 1, $mappingCount, $mapping->sourceUrl, $mapping->targetUrl));
                 if (!$this->targetLockManager->acquire($mapping->targetUrl)) {
                     throw new \RuntimeException(sprintf('Target "%s" is already being synchronized.', $mapping->targetUrl));
                 }
                 try {
-                    $this->cloneCommand->handle([], $mapping->toAssociativeArguments());
+                    $cloneArguments = $mapping->toAssociativeArguments();
+                    $cloning = true;
+                    $this->cloneCommand->handle([], $cloneArguments);
+                    $cloning = false;
                 } finally {
                     $this->targetLockManager->release($mapping->targetUrl);
                 }
@@ -55,14 +79,16 @@ class BatchCloneCommand
                 ]);
             } catch (\Throwable $throwable) {
                 $failures[] = $mapping->targetUrl;
+                $failureMessage = $cloning ? $this->cloneCommand->failureMessage($throwable) : $throwable->getMessage();
                 $this->logger->info('municipio_clone_batch_mapping_failed', [
                     'source' => $mapping->sourceUrl,
                     'target' => $mapping->targetUrl,
                     'elapsed_seconds' => round(microtime(true) - $startedAt, 3),
                     'error_type' => $throwable::class,
                     'error_message' => $throwable->getMessage(),
+                    'error_trace' => $throwable->getTraceAsString(),
                 ]);
-                $this->writeWarning(sprintf('Failed to synchronize %s: %s', $mapping->targetUrl, $throwable->getMessage()));
+                $this->writeWarning(sprintf('Failed to synchronize %s: %s', $mapping->targetUrl, $failureMessage));
             }
         }
 

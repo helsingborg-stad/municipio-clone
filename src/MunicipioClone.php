@@ -90,14 +90,14 @@ class MunicipioClone
                 ),
                 $cliLogger,
             );
-            \WP_CLI::add_command('municipio clone', [$command, 'handle']);
+            \WP_CLI::add_command('municipio clone', [$command, 'run']);
             $batchCommand = new BatchCloneCommand(
                 $command,
                 new BatchConfigurationLoader(),
                 new TargetLockManager($this->wpService, Config::targetLockTtl()),
                 $cliLogger,
             );
-            \WP_CLI::add_command('municipio clone-batch', [$batchCommand, 'handle']);
+            \WP_CLI::add_command('municipio clone-batch', [$batchCommand, 'run']);
         }
     }
 }
