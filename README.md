@@ -52,9 +52,11 @@ The immutable-artifact behavior is provided by the source site's plugin; existin
 
 Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`. On multisite, attachment URLs retain the source site's uploads path; all other source URLs are still replaced with `--target`.
 
+If cloning fails, WP-CLI prints one error describing the failed stage and exits with a nonzero status instead of printing an exception stack trace. To inspect exception details and stack traces when troubleshooting, rerun the command with `--debug=municipio-clone`.
+
 ## Batch cloning
 
-Use `wp municipio clone-batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially. A failed mapping is reported and does not stop remaining mappings; the command exits with an error after all mappings have been attempted.
+Use `wp municipio clone-batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially. Each failed mapping is reported once and does not stop remaining mappings; after all mappings have been attempted, the command prints a failure count and exits with a nonzero status. Use `--debug=municipio-clone` to see exception details and stack traces.
 
 Store only URLs, flags, and credential references in the JSON configuration. Do not put usernames or application passwords in the file. The `username_env` and `application_password_env` values can name either a PHP constant or an environment variable. A defined PHP constant takes precedence; if it is not defined, the matching environment variable is read.
 
