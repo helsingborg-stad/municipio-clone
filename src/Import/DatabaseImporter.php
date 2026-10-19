@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MunicipioClone\Import;
 
 use MunicipioClone\Contracts\DatabaseConnectionInterface;
+use MunicipioClone\Database\StoredSiteOptions;
 use WpService\WpService;
 
 /**
@@ -18,6 +19,7 @@ class DatabaseImporter
         private WpService $wpService,
         private DatabaseConnectionInterface $databaseConnection,
         private RemoteMediaUrlRewriter $remoteMediaUrlRewriter,
+        private ?StoredSiteOptions $storedSiteOptions = null,
     )
     {
     }
@@ -34,6 +36,7 @@ class DatabaseImporter
         ?string $sourceUrl = null,
         bool $keepRemoteMediaUrls = false,
         ?string $sourceMediaBaseUrl = null,
+        ?string $targetSiteUrl = null,
     ): void
     {
         $this->runStage(
@@ -92,7 +95,7 @@ class DatabaseImporter
             $stageRunner,
             'site_url_normalization',
             'Normalizing target home and site URLs',
-            fn(): null => $this->normalizeSiteUrls($targetBlogId, $targetUrl),
+            fn(): null => $this->normalizeSiteUrls($targetBlogId, $targetUrl, $targetSiteUrl ?? $targetUrl),
         );
         $this->runStage(
             $stageRunner,
@@ -102,23 +105,30 @@ class DatabaseImporter
         );
     }
 
-    private function normalizeSiteUrls(int $targetBlogId, string $targetUrl): null
+    private function normalizeSiteUrls(int $targetBlogId, string $targetUrl, string $targetSiteUrl): null
     {
-        $normalizedTargetUrl = rtrim($targetUrl, '/');
+        $expected = ['home' => rtrim($targetUrl, '/'), 'siteurl' => rtrim($targetSiteUrl, '/')];
+        $storedOptions = $this->storedSiteOptions ?? new StoredSiteOptions();
         $this->wpService->switchToBlog($targetBlogId);
         try {
-            foreach (['home', 'siteurl'] as $optionName) {
-                $this->wpService->updateOption($optionName, $normalizedTargetUrl);
+            foreach ($expected as $optionName => $url) {
+                $storedOptions->set($targetBlogId, $optionName, $url);
             }
-
-            foreach (['home', 'siteurl'] as $optionName) {
+            $this->wpService->wpCacheDelete('alloptions', 'options');
+            $this->wpService->wpCacheDelete('notoptions', 'options');
+            foreach ($expected as $optionName => $url) {
+                $this->wpService->wpCacheDelete($optionName, 'options');
+                $stored = $storedOptions->get($targetBlogId, $optionName);
+                if ($stored !== $url) {
+                    throw new \RuntimeException(sprintf('Target option "%s" is stored as "%s" instead of "%s". Check database permissions.', $optionName, $stored ?? '(missing)', $url));
+                }
                 $actualUrl = rtrim((string) $this->wpService->getOption($optionName), '/');
-                if ($actualUrl !== $normalizedTargetUrl) {
+                if ($actualUrl !== $url) {
                     throw new \RuntimeException(sprintf(
                         'Target option "%s" resolved to "%s" instead of "%s". Check WP_HOME, WP_SITEURL, and URL filters.',
                         $optionName,
                         $actualUrl,
-                        $normalizedTargetUrl,
+                        $url,
                     ));
                 }
             }

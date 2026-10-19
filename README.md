@@ -6,6 +6,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 
 - `wp municipio clone --source-url=<source> --target=<target> --username=<username> --application-password=<password> [--force] [--keep-remote-media-urls]`
 - `wp municipio clone-batch --config=<path>` for synchronizing several configured source-to-target mappings
+- Add `--target-siteurl=<installation-url>` when the WordPress installation URL differs from the public `--target` URL.
 - REST export endpoint at `/wp-json/municipio-clone/v1/export`
 - WordPress Application Password authentication with the `municipio_clone_export` capability
 - Encrypted artifact cache with configurable TTL
@@ -43,7 +44,9 @@ wp municipio clone \
 2. It authenticates against the source REST API with the supplied Application Password. The source checks that the user has the `municipio_clone_export` capability.
 3. The source generates a SQL export, applies the configured washer rules to mask supported personal and form data, and replaces source URLs with the neutral placeholder URL. Each encrypted artifact has its own immutable ID. The source caches a pointer to the current artifact until its TTL expires, while keeping older artifacts available through their retention period so concurrent clones can finish downloading. `--force` requests a new export, subject to the forced-regeneration window.
 4. The target downloads the artifact, remaps its database table prefixes to the target site, and imports the SQL.
-5. The command replaces the placeholder URL with `--target` in the imported tables, then normalizes the target site's `home` and `siteurl` options.
+5. The command replaces the placeholder URL with `--target` in the imported tables, then stores and verifies the target site's `home` and `siteurl` options independently.
+
+`--target` is the public `home` URL. For an existing site, the pre-import stored installation URL's path relative to its stored `home` is preserved even when the target scheme, domain, port, or path changes. For a new site, `siteurl` defaults to `--target`; use `--target-siteurl=https://department.example.test/wp` if WordPress is installed under `/wp`. Supply the override when the existing URL relationship cannot be inferred safely. Filtered options or `WP_HOME` / `WP_SITEURL` settings that disagree with the requested URLs cause the import to fail rather than report success.
 
 The immutable-artifact behavior is provided by the source site's plugin; existing clone clients remain compatible because the manifest and download URL contract is unchanged.
 
@@ -61,6 +64,7 @@ Store only URLs, flags, and credential references in the JSON configuration. Do 
     {
       "source_url": "https://production-one.example.se",
       "target": "https://staging.example.se/site-one",
+      "target_siteurl": "https://staging.example.se/site-one/wp",
       "username_env": "SITE_ONE_CLONE_USERNAME",
       "application_password_env": "SITE_ONE_CLONE_APPLICATION_PASSWORD",
       "keep_remote_media_urls": true

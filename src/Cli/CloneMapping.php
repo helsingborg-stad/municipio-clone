@@ -16,6 +16,7 @@ class CloneMapping
      * @param string $applicationPasswordEnvironmentVariable Environment variable containing the source application password.
      * @param bool $force Whether to request a fresh remote export.
      * @param bool $keepRemoteMediaUrls Whether to retain remote media URLs.
+     * @param ?string $targetSiteUrl Explicit WordPress installation URL.
      */
     public function __construct(
         public readonly string $sourceUrl,
@@ -24,6 +25,7 @@ class CloneMapping
         private readonly string $applicationPasswordEnvironmentVariable,
         public readonly bool $force,
         public readonly bool $keepRemoteMediaUrls,
+        public readonly ?string $targetSiteUrl = null,
     ) {
     }
 
@@ -48,6 +50,7 @@ class CloneMapping
         return array_filter([
             'source-url' => $this->sourceUrl,
             'target' => $this->targetUrl,
+            'target-siteurl' => $this->targetSiteUrl,
             'username' => $username,
             'application-password' => $applicationPassword,
             'force' => $this->force ?: null,

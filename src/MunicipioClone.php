@@ -9,6 +9,7 @@ use MunicipioClone\Cli\BatchCloneCommand;
 use MunicipioClone\Cli\BatchConfigurationLoader;
 use MunicipioClone\Cli\CloneCommand;
 use MunicipioClone\Database\WordPressDatabaseConnection;
+use MunicipioClone\Database\StoredSiteOptions;
 use MunicipioClone\Export\DataWasher;
 use MunicipioClone\Export\ExportService;
 use MunicipioClone\Export\FakeDataGenerator;
@@ -73,10 +74,11 @@ class MunicipioClone
 
         if (class_exists('WP_CLI')) {
             $cliLogger = new WpCliDebugLogger();
+            $storedSiteOptions = new StoredSiteOptions();
             $command = new CloneCommand(
                 new TargetEnvironmentGuard(),
                 static fn(string $username, string $applicationPassword): RemoteExportClient => new RemoteExportClient($username, $applicationPassword),
-                new TargetSiteManager($this->wpService),
+                new TargetSiteManager($this->wpService, $storedSiteOptions),
                 new TablePrefixRemapper(),
                 new DatabaseImporter(
                     new WpCliRunner(),
@@ -84,6 +86,7 @@ class MunicipioClone
                     $this->wpService,
                     new WordPressDatabaseConnection($this->wpService),
                     $remoteMediaUrlRewriter,
+                    $storedSiteOptions,
                 ),
                 $cliLogger,
             );

@@ -9,6 +9,7 @@ use MunicipioClone\Import\DatabaseImporter;
 use MunicipioClone\Import\RemoteMediaUrlRewriter;
 use MunicipioClone\Import\WpCliRunner;
 use MunicipioClone\Tests\TestDoubles\MutableWpService;
+use MunicipioClone\Tests\TestDoubles\FakeStoredSiteOptions;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -61,7 +62,8 @@ class DatabaseImporterTest extends TestCase
         };
 
         $wpService = new MutableWpService();
-        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
+        $wpService->options[3]['siteurl'] = 'http://localhost:8080/hbgtest/wp';
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
             3,
@@ -84,6 +86,12 @@ class DatabaseImporterTest extends TestCase
         $this->assertStringNotContainsString('--url=', $runner->commands[1]);
         $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['home']);
         $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['siteurl']);
+        $this->assertSame([
+            [3, 'alloptions', 'options'],
+            [3, 'notoptions', 'options'],
+            [3, 'home', 'options'],
+            [3, 'siteurl', 'options'],
+        ], $wpService->deletedCacheKeys);
         $this->assertSame(1, $wpService->currentBlogId);
         $this->assertCount(2, $runner->commands);
     }
@@ -133,12 +141,69 @@ class DatabaseImporterTest extends TestCase
             'Target option "siteurl" resolved to "https://localhost/hbgtest" instead of "http://localhost:8080/hbgtest". Check WP_HOME, WP_SITEURL, and URL filters.',
         );
 
-        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
             3,
             'mun_3_',
         );
+    }
+
+    public function testStoresDistinctHomeAndInstallationUrlsAfterSqlImport(): void
+    {
+        $wpService = new MutableWpService();
+        $wpService->options[3] = ['home' => 'https://source.example.test', 'siteurl' => 'https://source.example.test/wp'];
+        $runner = new class() extends WpCliRunner {
+            public function run(string $command): string
+            {
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['wp_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))
+            ->import('/tmp/export.sql', 'https://department.example.test', 3, 'wp_3_', targetSiteUrl: 'https://department.example.test/wp');
+
+        $this->assertSame('https://department.example.test', $wpService->options[3]['home']);
+        $this->assertSame('https://department.example.test/wp', $wpService->options[3]['siteurl']);
+    }
+
+    public function testFilteredCorrectValueCannotHideFailedStoredOptionWrite(): void
+    {
+        $wpService = new class() extends MutableWpService {
+            public function getOption(string $option, mixed $defaultValue = false): mixed
+            {
+                return $option === 'siteurl' ? 'https://department.example.test' : parent::getOption($option, $defaultValue);
+            }
+        };
+        $wpService->options[3]['siteurl'] = 'https://department.example.test/wp';
+        $storedOptions = new class($wpService) extends FakeStoredSiteOptions {
+            public function set(int $blogId, string $name, string $value): void
+            {
+                if ($name !== 'siteurl') {
+                    parent::set($blogId, $name, $value);
+                }
+            }
+        };
+        $runner = new class() extends WpCliRunner {
+            public function run(string $command): string { return ''; }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['wp_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Target option "siteurl" is stored as "https://department.example.test/wp" instead of "https://department.example.test"');
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), $storedOptions))
+            ->import('/tmp/export.sql', 'https://department.example.test', 3, 'wp_3_');
     }
 
     public function testKeepsRemoteMediaUrlsWhenRequested(): void
@@ -176,7 +241,7 @@ class DatabaseImporterTest extends TestCase
         };
 
         $wpService = new MutableWpService();
-        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
             3,
@@ -232,7 +297,7 @@ class DatabaseImporterTest extends TestCase
         };
 
         $wpService = new MutableWpService();
-        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/hbgtest/',
             3,
@@ -283,7 +348,7 @@ class DatabaseImporterTest extends TestCase
         $this->expectExceptionMessage('No imported tables were found with prefix "mun_4_".');
 
         $wpService = new MutableWpService();
-        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService)))->import(
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))->import(
             '/tmp/export.sql',
             'http://localhost:8080/visit/',
             4,
