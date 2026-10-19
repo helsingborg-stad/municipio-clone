@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.2...v1.5.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* avoid empty artifact downloads on LiteSpeed ([#27](https://github.com/helsingborg-stad/municipio-clone/issues/27)) ([320399e](https://github.com/helsingborg-stad/municipio-clone/commit/320399e9be771efc957e2913cbcb639ee8f24468))
+
 ## [1.5.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.1...v1.5.2) (2026-10-19)
 
 
