@@ -105,6 +105,14 @@ class DatabaseImporter
         );
     }
 
+    /**
+     * Rebuilds only the target site's stored rewrite rules after the import has finished.
+     */
+    public function flushTargetRewriteRules(string $targetUrl): void
+    {
+        $this->wpCliRunner->runInFreshProcess(sprintf('rewrite flush --url=%s', escapeshellarg($targetUrl)));
+    }
+
     private function normalizeSiteUrls(int $targetBlogId, string $targetUrl, string $targetSiteUrl): null
     {
         $expected = ['home' => rtrim($targetUrl, '/'), 'siteurl' => rtrim($targetSiteUrl, '/')];

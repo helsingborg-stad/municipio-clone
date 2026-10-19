@@ -60,15 +60,20 @@ if (!class_exists('WP_CLI')) {
         public static array $warningMessages = [];
         public static array $errorMessages = [];
         public static array $debugMessages = [];
+        public static ?object $runCommandResponse = null;
 
         public static function add_command(string $name, callable $callback): void
         {
             self::$commands[] = [$name, $callback];
         }
 
-        public static function runcommand(string $command, array $options = []): string
+        public static function runcommand(string $command, array $options = []): string|object
         {
             self::$runCommands[] = [$command, $options];
+
+            if ($options['return'] === 'all') {
+                return self::$runCommandResponse ?? (object) ['stdout' => '', 'stderr' => '', 'return_code' => 0];
+            }
 
             return '';
         }
