@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.4...v1.6.0) (2026-10-19)
+
+
+### Features
+
+* **clone:** report progress during SQL remap and import ([#39](https://github.com/helsingborg-stad/municipio-clone/issues/39)) ([0a74ddb](https://github.com/helsingborg-stad/municipio-clone/commit/0a74ddbd70c52f028df1c234e6bbd235c4265918))
+
 ## [1.5.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.3...v1.5.4) (2026-10-19)
 
 
