@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.3](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.2...v1.6.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* **import:** restore GUIDs in legacy export artifacts ([#45](https://github.com/helsingborg-stad/municipio-clone/issues/45)) ([8709719](https://github.com/helsingborg-stad/municipio-clone/commit/870971931d9ac031a749c4301bb9b89fb8bbcafe))
+
 ## [1.6.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.1...v1.6.2) (2026-10-19)
 
 
