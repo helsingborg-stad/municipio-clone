@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.1...v1.5.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* user friendly error messages ([#34](https://github.com/helsingborg-stad/municipio-clone/issues/34)) ([be3749d](https://github.com/helsingborg-stad/municipio-clone/commit/be3749df02fc657372a30a843e615d73f2a25f4c))
+
 ## [1.5.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.0...v1.5.1) (2026-10-19)
 
 
