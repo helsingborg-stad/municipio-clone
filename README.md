@@ -42,7 +42,7 @@ wp municipio clone \
 
 1. The command verifies that the target environment is safe, then resolves the target URL. On multisite installations, it creates the target subsite when needed; importing into an existing subsite requires confirmation.
 2. It authenticates against the source REST API with the supplied Application Password. The source checks that the user has the `municipio_clone_export` capability.
-3. The source generates a SQL export, applies the configured washer rules to mask supported personal and form data, and replaces source URLs with the neutral placeholder URL. Each encrypted artifact has its own immutable ID. The source caches a pointer to the current artifact until its TTL expires, while keeping older artifacts available through their retention period so concurrent clones can finish downloading. `--force` requests a new export, subject to the forced-regeneration window.
+3. The source generates a SQL export, applies the configured washer rules to mask supported personal and form data, and replaces source URLs with the neutral placeholder URL, except in `guid` columns (which retain their original identifiers). Each encrypted artifact has its own immutable ID. The source caches a pointer to the current artifact until its TTL expires, while keeping older artifacts available through their retention period so concurrent clones can finish downloading. `--force` requests a new export, subject to the forced-regeneration window.
 4. The target downloads the artifact, remaps its database table prefixes to the target site, and imports the SQL.
 5. The command replaces the placeholder URL with `--target` in the imported tables, then stores and verifies the target site's `home` and `siteurl` options independently.
 6. After a successful import, the command boots the target site in a fresh WP-CLI process and performs a soft rewrite flush. This refreshes pretty permalinks for the cloned site without rewriting web-server configuration. Batch cloning does this once per completed mapping. If flushing fails, the completed clone remains in place and WP-CLI reports a warning with the failure; rerun `wp rewrite flush --url=<target>` after fixing the cause.
@@ -54,7 +54,9 @@ The streaming importer inherits the current WP-CLI site's `--path` and `--url` a
 
 The immutable-artifact behavior is provided by the source site's plugin; existing clone clients remain compatible because the manifest and download URL contract is unchanged.
 
-Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`. On multisite, attachment URLs retain the source site's uploads path; all other source URLs are still replaced with `--target`.
+If an import fails with `Data too long for column 'guid'`, update the plugin on the **source** site and generate a new export before retrying. An older cached export may still contain expanded placeholder URLs in `guid` values; use `--force` when the source's forced-regeneration window allows it, or wait until its export cache expires. Existing imported data from a failed attempt should be treated as incomplete until the clone succeeds.
+
+Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`. On multisite, attachment URLs retain the source site's uploads path; other source URLs are replaced with `--target` except `guid` values, which retain their source identifiers.
 
 If cloning fails, WP-CLI prints one error describing the failed stage and exits with a nonzero status instead of printing an exception stack trace. To inspect exception details and stack traces when troubleshooting, rerun the command with `--debug=municipio-clone`.
 

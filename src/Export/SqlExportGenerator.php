@@ -72,7 +72,11 @@ class SqlExportGenerator
 
                 foreach ($this->databaseConnection->getRows($table) as $row) {
                     $sanitizedRow = $this->dataWasher->washRow($table, $row);
-                    $sanitizedRow = $this->placeholderReplacer->replace($sanitizedRow, (string) $context['source_url'], $this->placeholderUrl);
+                    foreach ($sanitizedRow as $column => $value) {
+                        if ($column !== 'guid') {
+                            $sanitizedRow[$column] = $this->placeholderReplacer->replace($value, (string) $context['source_url'], $this->placeholderUrl);
+                        }
+                    }
                     fwrite($handle, "\n\n" . $this->buildInsertStatement($table, $sanitizedRow));
                 }
             }
