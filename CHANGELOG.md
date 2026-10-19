@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.0...v1.6.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **import:** forward allow-root to streamed WP-CLI import ([#41](https://github.com/helsingborg-stad/municipio-clone/issues/41)) ([5437462](https://github.com/helsingborg-stad/municipio-clone/commit/543746248d130a58800bd28d6825cd41aa1a4d8b))
+
 ## [1.6.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.4...v1.6.0) (2026-10-19)
 
 
