@@ -18,6 +18,8 @@ class CloneCommand
 {
     private string $activeStage = 'initializing';
 
+    private ?string $failedStageLabel = null;
+
     private bool $commandCompleted = true;
 
     private ?string $fatalErrorMemoryReserve = null;
@@ -39,8 +41,45 @@ class CloneCommand
     ) {
     }
 
+    /**
+     * Runs the single-site command as a WP-CLI entry point.
+     *
+     * @param array<int, string> $arguments Positional WP-CLI arguments.
+     * @param array<string, mixed> $associativeArguments Named WP-CLI arguments.
+     */
+    public function run(array $arguments, array $associativeArguments): void
+    {
+        try {
+            $this->handle($arguments, $associativeArguments);
+        } catch (\Throwable $throwable) {
+            $this->logger->info('municipio_clone_command_failed', [
+                'error_type' => $throwable::class,
+                'error_message' => $throwable->getMessage(),
+                'error_trace' => $throwable->getTraceAsString(),
+            ]);
+            \WP_CLI::error($this->failureMessage($throwable));
+        }
+    }
+
+    /**
+     * Formats a clone failure for a user without exposing its stack trace.
+     */
+    public function failureMessage(\Throwable $throwable): string
+    {
+        return $this->failedStageLabel === null
+            ? $throwable->getMessage()
+            : sprintf('Failed during "%s": %s', $this->failedStageLabel, $throwable->getMessage());
+    }
+
+    /**
+     * Performs a clone without exiting, so batch mappings can continue after failure.
+     *
+     * @param array<int, string> $arguments Positional WP-CLI arguments.
+     * @param array<string, mixed> $associativeArguments Named WP-CLI arguments.
+     */
     public function handle(array $arguments, array $associativeArguments): void
     {
+        $this->failedStageLabel = null;
         $sourceUrl = (string) ($associativeArguments['source-url'] ?? '');
         $targetUrl = (string) ($associativeArguments['target'] ?? '');
         $username = (string) ($associativeArguments['username'] ?? '');
@@ -139,6 +178,7 @@ class CloneCommand
         try {
             $result = $operation();
         } catch (\Throwable $throwable) {
+            $this->failedStageLabel = $label;
             $context = [
                 'stage' => $stage,
                 'elapsed_seconds' => round(microtime(true) - $startedAt, 3),
@@ -148,11 +188,11 @@ class CloneCommand
             ];
             $this->logger->info('municipio_clone_stage_failed', $context);
             $this->finishDownloadProgressBar();
-            $this->writeWarning(sprintf('Failed during "%s": %s', $label, $throwable->getMessage()));
 
             throw $throwable;
         }
 
+        $this->failedStageLabel = null;
         $this->logger->info('municipio_clone_stage_completed', [
             'stage' => $stage,
             'elapsed_seconds' => round(microtime(true) - $startedAt, 3),

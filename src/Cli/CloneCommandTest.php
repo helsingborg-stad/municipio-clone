@@ -222,9 +222,10 @@ SQL),
             putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
         }
 
-        $this->assertContains(
+        $this->assertSame([], \WP_CLI::$warningMessages);
+        $this->assertSame(
             'Failed during "Requesting remote export": Remote request failed.',
-            \WP_CLI::$warningMessages,
+            $command->failureMessage(new \RuntimeException('Remote request failed.')),
         );
         $failureEntries = array_values(array_filter(
             $logger->entries,
@@ -232,5 +233,78 @@ SQL),
         ));
         $this->assertCount(1, $failureEntries);
         $this->assertSame('remote_export', $failureEntries[0][1]['stage']);
+    }
+
+    public function testRunReportsOneStageErrorAndKeepsTraceInDebugLog(): void
+    {
+        \WP_CLI::$errorMessages = [];
+        \WP_CLI::$warningMessages = [];
+        $logger = new class() implements LoggerInterface {
+            public array $entries = [];
+
+            public function info(string $message, array $context = []): void
+            {
+                $this->entries[] = [$message, $context];
+            }
+        };
+        $guard = new class() extends TargetEnvironmentGuard {
+            public function assertSafe(): void
+            {
+                throw new \RuntimeException('Unsafe target.');
+            }
+        };
+        $command = new CloneCommand(
+            $guard,
+            static fn(string $username, string $applicationPassword): RemoteExportClient => throw new \RuntimeException('Client must not be built.'),
+            $this->createStub(TargetSiteManager::class),
+            $this->createStub(TablePrefixRemapper::class),
+            $this->createStub(DatabaseImporter::class),
+            $logger,
+        );
+
+        try {
+            $command->run([], [
+                'source-url' => 'https://source.example.test',
+                'target' => 'https://target.example.test',
+                'username' => 'admin',
+                'application-password' => 'app-password',
+            ]);
+            $this->fail('Expected WP-CLI to exit with an error.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('WP-CLI exited with an error.', $exception->getMessage());
+        }
+
+        $this->assertSame(['Failed during "Validating target environment": Unsafe target.'], \WP_CLI::$errorMessages);
+        $this->assertSame([], \WP_CLI::$warningMessages);
+        $this->assertSame('municipio_clone_command_failed', $logger->entries[2][0]);
+        $this->assertStringContainsString('testRunReportsOneStageErrorAndKeepsTraceInDebugLog', $logger->entries[2][1]['error_trace']);
+    }
+
+    public function testRunReportsMissingArgumentsWithoutStageOrTrace(): void
+    {
+        \WP_CLI::$errorMessages = [];
+        $command = new CloneCommand(
+            new TargetEnvironmentGuard(),
+            static fn(string $username, string $applicationPassword): RemoteExportClient => throw new \RuntimeException('Client must not be built.'),
+            $this->createStub(TargetSiteManager::class),
+            $this->createStub(TablePrefixRemapper::class),
+            $this->createStub(DatabaseImporter::class),
+            new class() implements LoggerInterface {
+                public function info(string $message, array $context = []): void
+                {
+                }
+            },
+        );
+
+        try {
+            $command->run([], []);
+            $this->fail('Expected WP-CLI to exit with an error.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('WP-CLI exited with an error.', $exception->getMessage());
+        }
+
+        $this->assertSame([
+            'The --source-url, --target, --username, and --application-password arguments are required.',
+        ], \WP_CLI::$errorMessages);
     }
 }

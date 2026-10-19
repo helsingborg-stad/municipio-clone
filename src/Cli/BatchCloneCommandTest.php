@@ -114,6 +114,108 @@ class BatchCloneCommandTest extends TestCase
         $this->assertSame('municipio_clone_batch_completed', $logger->entries[2][0]);
     }
 
+    public function testRunReportsMappingOnceAndExitsWithSummary(): void
+    {
+        \WP_CLI::$warningMessages = [];
+        \WP_CLI::$errorMessages = [];
+        $cloneCommand = new class() extends CloneCommand {
+            public array $calls = [];
+
+            public function __construct()
+            {
+            }
+
+            public function handle(array $arguments, array $associativeArguments): void
+            {
+                $this->calls[] = $associativeArguments;
+                if ($associativeArguments['source-url'] === 'https://one.example.test') {
+                    throw new \RuntimeException('Remote export failed.');
+                }
+            }
+
+            public function failureMessage(\Throwable $throwable): string
+            {
+                return sprintf('Failed during "Requesting remote export": %s', $throwable->getMessage());
+            }
+        };
+        $logger = new class() implements LoggerInterface {
+            public array $entries = [];
+
+            public function info(string $message, array $context = []): void
+            {
+                $this->entries[] = [$message, $context];
+            }
+        };
+        $command = new BatchCloneCommand(
+            $cloneCommand,
+            $this->configurationLoaderFor($this->mappings()),
+            $this->targetLockManager(),
+            $logger,
+        );
+        putenv('MUNICIPIO_CLONE_BATCH_USER=clone-user');
+        putenv('MUNICIPIO_CLONE_BATCH_PASSWORD=clone-password');
+
+        try {
+            $command->run([], ['config' => '/not-used.json']);
+            $this->fail('Expected WP-CLI to exit with an error.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('WP-CLI exited with an error.', $exception->getMessage());
+        } finally {
+            putenv('MUNICIPIO_CLONE_BATCH_USER');
+            putenv('MUNICIPIO_CLONE_BATCH_PASSWORD');
+        }
+
+        $this->assertCount(2, $cloneCommand->calls);
+        $this->assertSame([
+            'Failed to synchronize https://one-target.example.test: Failed during "Requesting remote export": Remote export failed.',
+        ], \WP_CLI::$warningMessages);
+        $this->assertSame(['1 of 2 clone mappings failed.'], \WP_CLI::$errorMessages);
+        $this->assertSame('municipio_clone_batch_mapping_failed', $logger->entries[0][0]);
+        $this->assertStringContainsString('testRunReportsMappingOnceAndExitsWithSummary', $logger->entries[0][1]['error_trace']);
+    }
+
+    public function testRunReportsConfigurationErrorsWithoutMappingWarnings(): void
+    {
+        \WP_CLI::$warningMessages = [];
+        \WP_CLI::$errorMessages = [];
+        $loader = new class() extends BatchConfigurationLoader {
+            public function load(string $path): array
+            {
+                throw new \InvalidArgumentException('Invalid batch configuration.');
+            }
+        };
+        $logger = new class() implements LoggerInterface {
+            public array $entries = [];
+
+            public function info(string $message, array $context = []): void
+            {
+                $this->entries[] = [$message, $context];
+            }
+        };
+        $command = new BatchCloneCommand(
+            new class() extends CloneCommand {
+                public function __construct()
+                {
+                }
+            },
+            $loader,
+            $this->targetLockManager(),
+            $logger,
+        );
+
+        try {
+            $command->run([], ['config' => '/invalid.json']);
+            $this->fail('Expected WP-CLI to exit with an error.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('WP-CLI exited with an error.', $exception->getMessage());
+        }
+
+        $this->assertSame([], \WP_CLI::$warningMessages);
+        $this->assertSame(['Invalid batch configuration.'], \WP_CLI::$errorMessages);
+        $this->assertSame('municipio_clone_batch_command_failed', $logger->entries[0][0]);
+        $this->assertNotEmpty($logger->entries[0][1]['error_trace']);
+    }
+
     private function configurationLoaderFor(array $mappings): BatchConfigurationLoader
     {
         return new class($mappings) extends BatchConfigurationLoader {
