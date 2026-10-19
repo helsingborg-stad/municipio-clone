@@ -130,7 +130,7 @@ class WpCliRunner
     }
 
     /**
-     * Reuses the current WP-CLI executable and WordPress path in the import subprocess.
+     * Reuses the current WP-CLI executable, site selection, and root authorization.
      *
      * @return list<string>
      */
@@ -148,6 +148,9 @@ class WpCliRunner
         $url = \WP_CLI::get_config('url');
         if (is_string($url) && $url !== '') {
             $command[] = '--url=' . $url;
+        }
+        if (\WP_CLI::get_config('allow-root') === true) {
+            $command[] = '--allow-root';
         }
 
         return $command;

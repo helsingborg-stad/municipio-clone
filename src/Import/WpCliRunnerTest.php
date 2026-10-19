@@ -12,6 +12,50 @@ use PHPUnit\Framework\TestCase;
  */
 class WpCliRunnerTest extends TestCase
 {
+    public function testStreamingImportInheritsExplicitRootAuthorization(): void
+    {
+        $runner = new class() extends WpCliRunner {
+            public function command(): array
+            {
+                return $this->importCommand();
+            }
+        };
+        $previousArguments = $GLOBALS['argv'] ?? null;
+        $GLOBALS['argv'][0] = __FILE__;
+        \WP_CLI::$config = ['path' => '/var/www/wordpress', 'url' => 'https://stage.example.test/site', 'allow-root' => true];
+
+        try {
+            $this->assertSame([
+                PHP_BINARY,
+                realpath(__FILE__),
+                'db',
+                'import',
+                '-',
+                '--path=/var/www/wordpress',
+                '--url=https://stage.example.test/site',
+                '--allow-root',
+            ], $runner->command());
+
+            \WP_CLI::$config['allow-root'] = false;
+            $this->assertSame([
+                PHP_BINARY,
+                realpath(__FILE__),
+                'db',
+                'import',
+                '-',
+                '--path=/var/www/wordpress',
+                '--url=https://stage.example.test/site',
+            ], $runner->command());
+        } finally {
+            \WP_CLI::$config = [];
+            if ($previousArguments === null) {
+                unset($GLOBALS['argv']);
+            } else {
+                $GLOBALS['argv'] = $previousArguments;
+            }
+        }
+    }
+
     public function testStreamsArtifactAndReportsBytesUntilChildCompletes(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'municipio_clone_stream_test_');
