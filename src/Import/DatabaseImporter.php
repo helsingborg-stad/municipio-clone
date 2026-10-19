@@ -26,6 +26,7 @@ class DatabaseImporter
 
     /**
      * @param null|callable(string, string, callable): mixed $stageRunner
+     * @param null|callable(int, int, bool): void $onImportProgress
      */
     public function import(
         string $artifactPath,
@@ -37,13 +38,16 @@ class DatabaseImporter
         bool $keepRemoteMediaUrls = false,
         ?string $sourceMediaBaseUrl = null,
         ?string $targetSiteUrl = null,
+        ?callable $onImportProgress = null,
     ): void
     {
         $this->runStage(
             $stageRunner,
             'database_import',
             'Importing SQL into the target database',
-            fn(): string => $this->wpCliRunner->run(sprintf('db import %s', escapeshellarg($artifactPath))),
+            fn(): mixed => $onImportProgress === null
+                ? $this->wpCliRunner->run(sprintf('db import %s', escapeshellarg($artifactPath)))
+                : $this->wpCliRunner->importFromStream($artifactPath, $onImportProgress),
         );
         $tables = $this->runStage(
             $stageRunner,

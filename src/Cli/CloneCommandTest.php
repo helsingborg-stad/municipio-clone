@@ -133,13 +133,20 @@ SQL),
                 true,
                 'https://media.example.test/uploads',
                 'https://target.example.test/site/wp',
+                $this->isCallable(),
             )
-            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, string $sourceMediaBaseUrl, string $targetSiteUrl): void {
+            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, string $sourceMediaBaseUrl, string $targetSiteUrl, callable $onImportProgress): void {
                 self::assertSame('https://source.example.test', $sourceUrl);
                 self::assertTrue($keepRemoteMediaUrls);
                 self::assertSame('https://media.example.test/uploads', $sourceMediaBaseUrl);
                 self::assertSame('https://target.example.test/site/wp', $targetSiteUrl);
-                $stageRunner('database_import', 'Importing SQL into the target database', static fn(): null => null);
+                $stageRunner('database_import', 'Importing SQL into the target database', static function () use ($onImportProgress): null {
+                    $onImportProgress(0, 1024, false);
+                    $onImportProgress(1024, 1024, true);
+                    $onImportProgress(1024, 1024, true);
+
+                    return null;
+                });
                 $stageRunner('table_discovery', 'Discovering imported database tables', static fn(): null => null);
                 $stageRunner('remote_media_url_restoration', 'Keeping remote media URLs', static fn(): null => null);
                 $stageRunner('url_replacement', 'Replacing source URLs in imported data', static fn(): null => null);
@@ -173,7 +180,11 @@ SQL),
             'Requesting remote export...',
             'Downloading export artifact...',
             'Remapping database table prefixes...',
+            'Remapping SQL: 0% (0.0 KB of 0.2 KB)',
+            'Remapping SQL: 100% (0.2 KB of 0.2 KB)',
             'Importing SQL into the target database...',
+            'Sending SQL to importer: 0% (0.0 KB of 1.0 KB)',
+            'Sending SQL to importer: 100% (1.0 KB of 1.0 KB); waiting for database import to finish...',
             'Discovering imported database tables...',
             'Keeping remote media URLs...',
             'Replacing source URLs in imported data...',

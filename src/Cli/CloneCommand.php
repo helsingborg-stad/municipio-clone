@@ -28,6 +28,14 @@ class CloneCommand
 
     private int $reportedDownloadBytes = 0;
 
+    private mixed $stageProgressBar = null;
+
+    private int $reportedStageBytes = 0;
+
+    private float $lastStageProgressLogAt = 0.0;
+
+    private bool $stageInputComplete = false;
+
     /**
     * @param callable(string, string):RemoteExportClient $remoteExportClientFactory
      */
@@ -127,6 +135,7 @@ class CloneCommand
                         $artifactPath,
                         (string) ($manifest['source_table_prefix'] ?? 'wp_'),
                         (string) $targetSite['table_prefix'],
+                        fn(int $processed, int $total): null => $this->reportStageProgress('Remapping SQL', $processed, $total),
                     ),
                 );
                 $this->databaseImporter->import(
@@ -139,6 +148,7 @@ class CloneCommand
                     $keepRemoteMediaUrls,
                     (string) ($manifest['source_media_base_url'] ?? ''),
                     (string) ($targetSite['siteurl'] ?? $targetSite['url']),
+                    fn(int $sent, int $total, bool $waiting): null => $this->reportStageProgress('Sending SQL to importer', $sent, $total, $waiting),
                 );
             } finally {
                 @unlink($artifactPath);
@@ -184,6 +194,8 @@ class CloneCommand
     private function runStage(string $stage, string $label, callable $operation): mixed
     {
         $this->activeStage = $stage;
+        $this->lastStageProgressLogAt = 0.0;
+        $this->stageInputComplete = false;
         $startedAt = microtime(true);
         $this->writeProgress($label . '...');
         $this->logger->info('municipio_clone_stage_started', [
@@ -204,11 +216,16 @@ class CloneCommand
             ];
             $this->logger->info('municipio_clone_stage_failed', $context);
             $this->finishDownloadProgressBar();
+            if ($this->stageProgressBar !== null) {
+                $this->stageProgressBar = null;
+                $this->writeProgress('');
+            }
 
             throw $throwable;
         }
 
         $this->failedStageLabel = null;
+        $this->finishStageProgressBar();
         $this->logger->info('municipio_clone_stage_completed', [
             'stage' => $stage,
             'elapsed_seconds' => round(microtime(true) - $startedAt, 3),
@@ -312,6 +329,64 @@ class CloneCommand
 
         $this->downloadProgressBar->finish();
         $this->downloadProgressBar = null;
+    }
+
+    /**
+     * Reports input bytes, not the number of SQL statements committed by the database.
+     */
+    private function reportStageProgress(string $label, int $processed, int $total, bool $waiting = false): null
+    {
+        $now = microtime(true);
+        $finishedSending = $waiting && $processed === $total;
+        $firstWait = $finishedSending && !$this->stageInputComplete;
+        $this->stageInputComplete = $finishedSending;
+        if (
+            $this->stageProgressBar === null
+            && !$waiting
+            && $total > 0
+            && function_exists('WP_CLI\Utils\make_progress_bar')
+            && defined('STDOUT')
+            && function_exists('stream_isatty')
+            && stream_isatty(STDOUT)
+        ) {
+            $this->stageProgressBar = \WP_CLI\Utils\make_progress_bar($label . ' (' . $this->formatBytes($total) . ')', $total);
+            $this->reportedStageBytes = 0;
+        }
+        if ($this->stageProgressBar !== null) {
+            $this->stageProgressBar->tick($processed - $this->reportedStageBytes);
+            $this->reportedStageBytes = $processed;
+            if ($finishedSending) {
+                $this->finishStageProgressBar();
+            } else {
+                return null;
+            }
+        }
+        if ($this->lastStageProgressLogAt === 0.0 || $now - $this->lastStageProgressLogAt >= 5 || $firstWait || (!$waiting && $total > 0 && $processed === $total)) {
+            $percentage = $total > 0 ? min(100, (int) floor(100 * $processed / $total)) : 100;
+            $this->writeProgress(sprintf(
+                '%s: %d%% (%s of %s)%s',
+                $label,
+                $percentage,
+                $this->formatBytes($processed),
+                $this->formatBytes($total),
+                $finishedSending ? '; waiting for database import to finish...' : '',
+            ));
+            $this->lastStageProgressLogAt = $now;
+        }
+
+        return null;
+    }
+
+    /**
+     * Completes the current stage's interactive progress display.
+     */
+    private function finishStageProgressBar(): void
+    {
+        if ($this->stageProgressBar === null) {
+            return;
+        }
+        $this->stageProgressBar->finish();
+        $this->stageProgressBar = null;
     }
 
     private function formatBytes(int $bytes): string
