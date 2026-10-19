@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.5.0...v1.5.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* preserve distinct home and siteurl values during clones ([#33](https://github.com/helsingborg-stad/municipio-clone/issues/33)) ([7da8177](https://github.com/helsingborg-stad/municipio-clone/commit/7da81779803e2c31ec736fb8c5a68de4f2e56418))
+* **storage:** keep export artifacts immutable ([#30](https://github.com/helsingborg-stad/municipio-clone/issues/30)) ([c43d8a9](https://github.com/helsingborg-stad/municipio-clone/commit/c43d8a9db068a809fbe43665fd7d0d9de5bbed9d))
+
 ## [1.5.0](https://github.com/helsingborg-stad/municipio-clone/compare/v1.4.4...v1.5.0) (2026-10-05)
 
 
