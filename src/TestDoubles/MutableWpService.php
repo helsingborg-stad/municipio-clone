@@ -20,6 +20,7 @@ class MutableWpService extends FakeWpService
     public array $userMeta = [];
     public array $sites = [];
     public array $options = [];
+    public array $deletedCacheKeys = [];
     public bool $multisite = false;
     public int $currentBlogId = 1;
     public string $homeUrl = 'https://source.example.test';
@@ -233,6 +234,13 @@ class MutableWpService extends FakeWpService
     public function getOption(string $option, mixed $defaultValue = false): mixed
     {
         return $this->options[$this->currentBlogId][$option] ?? $defaultValue;
+    }
+
+    public function wpCacheDelete(int|string $key, string $group = ''): bool
+    {
+        $this->deletedCacheKeys[] = [$this->currentBlogId, $key, $group];
+
+        return true;
     }
 
     public function getUsers(array $args = []): array

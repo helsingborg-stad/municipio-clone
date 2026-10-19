@@ -86,6 +86,12 @@ class DatabaseImporterTest extends TestCase
         $this->assertStringNotContainsString('--url=', $runner->commands[1]);
         $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['home']);
         $this->assertSame('http://localhost:8080/hbgtest', $wpService->options[3]['siteurl']);
+        $this->assertSame([
+            [3, 'alloptions', 'options'],
+            [3, 'notoptions', 'options'],
+            [3, 'home', 'options'],
+            [3, 'siteurl', 'options'],
+        ], $wpService->deletedCacheKeys);
         $this->assertSame(1, $wpService->currentBlogId);
         $this->assertCount(2, $runner->commands);
     }
