@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.1...v1.6.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **export:** preserve GUIDs during URL placeholder replacement ([#43](https://github.com/helsingborg-stad/municipio-clone/issues/43)) ([bc0f6b5](https://github.com/helsingborg-stad/municipio-clone/commit/bc0f6b55e542396bbf1018f59d852ce40e908c91))
+
 ## [1.6.1](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.0...v1.6.1) (2026-10-19)
 
 
