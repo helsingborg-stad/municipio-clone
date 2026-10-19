@@ -16,6 +16,7 @@ use MunicipioClone\Export\FakeDataGenerator;
 use MunicipioClone\Export\SqlExportGenerator;
 use MunicipioClone\Export\WasherRegistry;
 use MunicipioClone\Import\DatabaseImporter;
+use MunicipioClone\Import\LegacyGuidRestorer;
 use MunicipioClone\Import\RemoteMediaUrlRewriter;
 use MunicipioClone\Import\RemoteExportClient;
 use MunicipioClone\Import\TablePrefixRemapper;
@@ -89,6 +90,7 @@ class MunicipioClone
                     $storedSiteOptions,
                 ),
                 $cliLogger,
+                new LegacyGuidRestorer(),
             );
             \WP_CLI::add_command('municipio clone', [$command, 'run']);
             $batchCommand = new BatchCloneCommand(
