@@ -6,10 +6,12 @@ namespace MunicipioClone\Cli;
 
 use MunicipioClone\Contracts\LoggerInterface;
 use MunicipioClone\Import\DatabaseImporter;
+use MunicipioClone\Import\LegacyGuidRestorer;
 use MunicipioClone\Import\RemoteExportClient;
 use MunicipioClone\Import\TablePrefixRemapper;
 use MunicipioClone\Import\TargetEnvironmentGuard;
 use MunicipioClone\Import\TargetSiteManager;
+use MunicipioClone\Support\Config;
 
 /**
  * Implements the wp municipio clone command.
@@ -36,6 +38,8 @@ class CloneCommand
 
     private bool $stageInputComplete = false;
 
+    private LegacyGuidRestorer $legacyGuidRestorer;
+
     /**
     * @param callable(string, string):RemoteExportClient $remoteExportClientFactory
      */
@@ -46,7 +50,9 @@ class CloneCommand
         private TablePrefixRemapper $tablePrefixRemapper,
         private DatabaseImporter $databaseImporter,
         private LoggerInterface $logger,
+        ?LegacyGuidRestorer $legacyGuidRestorer = null,
     ) {
+        $this->legacyGuidRestorer = $legacyGuidRestorer ?? new LegacyGuidRestorer();
     }
 
     /**
@@ -136,6 +142,16 @@ class CloneCommand
                         (string) ($manifest['source_table_prefix'] ?? 'wp_'),
                         (string) $targetSite['table_prefix'],
                         fn(int $processed, int $total): null => $this->reportStageProgress('Remapping SQL', $processed, $total),
+                    ),
+                );
+                $this->runStage(
+                    'legacy_guid_restoration',
+                    'Restoring legacy GUIDs',
+                    fn(): string => $this->legacyGuidRestorer->restoreFile(
+                        $artifactPath,
+                        (string) ($manifest['placeholder_url'] ?? Config::placeholderUrl()),
+                        (string) ($manifest['source_url'] ?? $sourceUrl),
+                        fn(int $processed, int $total): null => $this->reportStageProgress('Restoring GUIDs', $processed, $total),
                     ),
                 );
                 $this->databaseImporter->import(

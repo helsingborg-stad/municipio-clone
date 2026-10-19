@@ -75,6 +75,7 @@ class CloneCommandTest extends TestCase
 CREATE TABLE `wp_7_posts` ();
 INSERT INTO `wp_7_options` (`option_name`, `option_value`) VALUES ('wp_7_user_roles', 'wp_7_capabilities');
 INSERT INTO `wp_7_posts` (`post_content`) VALUES ('wp_7_posts');
+INSERT INTO `wp_7_posts` (`guid`, `post_content`) VALUES ('https://municipio-clone-placeholder.invalid/post', 'https://municipio-clone-placeholder.invalid/post');
 SQL);
 
         $client = $this->createStub(RemoteExportClient::class);
@@ -84,8 +85,11 @@ SQL);
 CREATE TABLE `wp_7_posts` ();
 INSERT INTO `wp_7_options` (`option_name`, `option_value`) VALUES ('wp_7_user_roles', 'wp_7_capabilities');
 INSERT INTO `wp_7_posts` (`post_content`) VALUES ('wp_7_posts');
+INSERT INTO `wp_7_posts` (`guid`, `post_content`) VALUES ('https://municipio-clone-placeholder.invalid/post', 'https://municipio-clone-placeholder.invalid/post');
 SQL),
             'source_table_prefix' => 'wp_7_',
+            'source_url' => 'https://source.example.test',
+            'placeholder_url' => 'https://municipio-clone-placeholder.invalid',
             'source_blog_id' => 7,
             'source_media_base_url' => 'https://media.example.test/uploads',
             'cache_status' => 'generated',
@@ -123,7 +127,11 @@ SQL),
                     return str_contains($content, 'wp_3_posts')
                         && str_contains($content, 'wp_3_user_roles')
                         && str_contains($content, 'wp_3_capabilities')
-                        && str_contains($content, "'wp_7_posts'");
+                        && str_contains($content, "'wp_7_posts'")
+                        && str_contains(
+                            $content,
+                            "VALUES ('https://source.example.test/post', 'https://municipio-clone-placeholder.invalid/post')",
+                        );
                 }),
                 'https://target.example.test/site',
                 3,
@@ -180,8 +188,11 @@ SQL),
             'Requesting remote export...',
             'Downloading export artifact...',
             'Remapping database table prefixes...',
-            'Remapping SQL: 0% (0.0 KB of 0.2 KB)',
-            'Remapping SQL: 100% (0.2 KB of 0.2 KB)',
+            'Remapping SQL: 0% (0.0 KB of 0.4 KB)',
+            'Remapping SQL: 100% (0.4 KB of 0.4 KB)',
+            'Restoring legacy GUIDs...',
+            'Restoring GUIDs: 0% (0.0 KB of 0.4 KB)',
+            'Restoring GUIDs: 100% (0.4 KB of 0.4 KB)',
             'Importing SQL into the target database...',
             'Sending SQL to importer: 0% (0.0 KB of 1.0 KB)',
             'Sending SQL to importer: 100% (1.0 KB of 1.0 KB); waiting for database import to finish...',
