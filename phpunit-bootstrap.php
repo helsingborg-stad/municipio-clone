@@ -61,6 +61,17 @@ if (!class_exists('WP_CLI')) {
         public static array $errorMessages = [];
         public static array $debugMessages = [];
         public static ?object $runCommandResponse = null;
+        public static array $config = [];
+
+        public static function get_php_binary(): string
+        {
+            return PHP_BINARY;
+        }
+
+        public static function get_config(string $key): mixed
+        {
+            return self::$config[$key] ?? null;
+        }
 
         public static function add_command(string $name, callable $callback): void
         {
