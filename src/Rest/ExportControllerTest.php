@@ -90,7 +90,7 @@ class ExportControllerTest extends TestCase
         $this->assertTrue($served);
         $this->assertSame('SELECT 1;', $output);
         $this->assertSame('application/sql', $server->headers['Content-Type']);
-        $this->assertSame('identity', $server->headers['Content-Encoding']);
+        $this->assertArrayNotHasKey('Content-Encoding', $server->headers);
         $this->assertSame('private, no-store, no-transform', $server->headers['Cache-Control']);
         $this->assertSame('9', $server->headers['Content-Length']);
         $this->assertSame('9', $server->headers['X-Municipio-Clone-Total-Bytes']);
