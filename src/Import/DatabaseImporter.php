@@ -41,6 +41,12 @@ class DatabaseImporter
         ?callable $onImportProgress = null,
     ): void
     {
+        $storedOptions = $this->storedSiteOptions ?? new StoredSiteOptions();
+        $targetUploadOptions = [
+            'upload_path' => $storedOptions->get($targetBlogId, 'upload_path') ?? '',
+            'upload_url_path' => $storedOptions->get($targetBlogId, 'upload_url_path') ?? '',
+        ];
+
         $this->runStage(
             $stageRunner,
             'database_import',
@@ -103,6 +109,12 @@ class DatabaseImporter
         );
         $this->runStage(
             $stageRunner,
+            'upload_configuration_restoration',
+            'Restoring target upload configuration',
+            fn(): null => $this->restoreUploadOptions($targetBlogId, $targetUploadOptions, $storedOptions),
+        );
+        $this->runStage(
+            $stageRunner,
             'remote_media_url_configuration',
             'Configuring remote media URLs',
             fn(): null => $this->configureRemoteMediaUrls($targetBlogId, $resolvedSourceMediaBaseUrl, $keepRemoteMediaUrls),
@@ -154,6 +166,33 @@ class DatabaseImporter
     private function configureRemoteMediaUrls(int $targetBlogId, string $sourceMediaBaseUrl, bool $keepRemoteMediaUrls): null
     {
         $this->remoteMediaUrlRewriter->configure($targetBlogId, $sourceMediaBaseUrl, $keepRemoteMediaUrls);
+
+        return null;
+    }
+
+    /**
+     * Restores the target's upload settings instead of retaining the source's paths.
+     *
+     * @param array<string, string> $targetUploadOptions
+     */
+    private function restoreUploadOptions(int $targetBlogId, array $targetUploadOptions, StoredSiteOptions $storedOptions): null
+    {
+        $this->wpService->switchToBlog($targetBlogId);
+        try {
+            foreach ($targetUploadOptions as $name => $value) {
+                $storedOptions->set($targetBlogId, $name, $value);
+            }
+            $this->wpService->wpCacheDelete('alloptions', 'options');
+            $this->wpService->wpCacheDelete('notoptions', 'options');
+            foreach ($targetUploadOptions as $name => $value) {
+                $this->wpService->wpCacheDelete($name, 'options');
+                if ($storedOptions->get($targetBlogId, $name) !== $value || (string) $this->wpService->getOption($name, '') !== $value) {
+                    throw new \RuntimeException(sprintf('Could not restore target option "%s". Check database permissions and option filters.', $name));
+                }
+            }
+        } finally {
+            $this->wpService->restoreCurrentBlog();
+        }
 
         return null;
     }

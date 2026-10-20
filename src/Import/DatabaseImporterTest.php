@@ -142,6 +142,7 @@ class DatabaseImporterTest extends TestCase
             ['table_discovery', 'Discovering imported database tables'],
             ['url_replacement', 'Replacing source URLs in imported data'],
             ['site_url_normalization', 'Normalizing target home and site URLs'],
+            ['upload_configuration_restoration', 'Restoring target upload configuration'],
             ['remote_media_url_configuration', 'Configuring remote media URLs'],
         ], $stages);
         $this->assertSame(3, $databaseConnection->requestedBlogId);
@@ -157,6 +158,10 @@ class DatabaseImporterTest extends TestCase
             [3, 'notoptions', 'options'],
             [3, 'home', 'options'],
             [3, 'siteurl', 'options'],
+            [3, 'alloptions', 'options'],
+            [3, 'notoptions', 'options'],
+            [3, 'upload_path', 'options'],
+            [3, 'upload_url_path', 'options'],
         ], $wpService->deletedCacheKeys);
         $this->assertSame(1, $wpService->currentBlogId);
         $this->assertCount(2, $runner->commands);
@@ -326,6 +331,80 @@ class DatabaseImporterTest extends TestCase
             "'https://clone.invalid' 'http://localhost:8080/hbgtest/'",
             $runner->commands[2],
         );
+    }
+
+    public function testRestoresTargetSpecificUploadSettingsAfterImport(): void
+    {
+        $wpService = new MutableWpService();
+        $wpService->options[3] = [
+            'upload_path' => '/local/uploads/networks/1',
+            'upload_url_path' => 'http://localhost:8080/wp-content/uploads/networks/1',
+        ];
+        $runner = new class($wpService) extends WpCliRunner {
+            public function __construct(private MutableWpService $wpService)
+            {
+            }
+
+            public function run(string $command): string
+            {
+                if (str_starts_with($command, 'db import')) {
+                    $this->wpService->options[3]['upload_path'] = '/production/uploads/networks/5';
+                    $this->wpService->options[3]['upload_url_path'] = 'https://media.example.test/networks/5';
+                }
+
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['wp_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))
+            ->import('/tmp/export.sql', 'http://localhost:8080/site', 3, 'wp_3_', sourceUrl: 'https://source.example.test', keepRemoteMediaUrls: true);
+
+        $this->assertSame('/local/uploads/networks/1', $wpService->options[3]['upload_path']);
+        $this->assertSame('http://localhost:8080/wp-content/uploads/networks/1', $wpService->options[3]['upload_url_path']);
+    }
+
+    public function testRejectsUploadSettingsThatCannotBeRestored(): void
+    {
+        $wpService = new MutableWpService();
+        $storedOptions = new class($wpService) extends FakeStoredSiteOptions {
+            public function set(int $blogId, string $name, string $value): void
+            {
+                if ($name !== 'upload_url_path') {
+                    parent::set($blogId, $name, $value);
+                }
+            }
+        };
+        $runner = new class($wpService) extends WpCliRunner {
+            public function __construct(private MutableWpService $wpService)
+            {
+            }
+
+            public function run(string $command): string
+            {
+                if (str_starts_with($command, 'db import')) {
+                    $this->wpService->options[3]['upload_url_path'] = 'https://media.example.test/uploads';
+                }
+
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['wp_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Could not restore target option "upload_url_path"');
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), $storedOptions))
+            ->import('/tmp/export.sql', 'http://localhost:8080/site', 3, 'wp_3_');
     }
 
     public function testUsesTheCapturedSourceMediaBaseUrlWhenProvided(): void

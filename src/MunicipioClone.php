@@ -47,6 +47,7 @@ class MunicipioClone
         $this->capabilityRegistrar->register();
         $remoteMediaUrlRewriter = new RemoteMediaUrlRewriter($this->wpService);
         $this->wpService->addFilter('wp_get_attachment_url', [$remoteMediaUrlRewriter, 'filterAttachmentUrl'], 10, 2);
+        $this->wpService->addAction('add_attachment', [$remoteMediaUrlRewriter, 'recordLocalAttachment']);
         $logger = new PhpErrorLogger();
         $artifactStorage = new EncryptedArtifactStorage(
             Config::storageDirectory(),
