@@ -12,6 +12,7 @@ use WpService\WpService;
 class RemoteMediaUrlRewriter
 {
     private const SOURCE_URL_OPTION = 'municipio_clone_remote_media_source_url';
+    private const FIRST_LOCAL_ATTACHMENT_ID_OPTION = 'municipio_clone_first_local_attachment_id';
 
     /**
      * @param WpService $wpService WordPress operations for the active site.
@@ -31,12 +32,38 @@ class RemoteMediaUrlRewriter
     {
         $this->wpService->switchToBlog($targetBlogId);
         try {
-            $this->wpService->updateOption(
-                self::SOURCE_URL_OPTION,
-                $keepRemoteMediaUrls ? rtrim($sourceMediaBaseUrl, '/') : '',
-            );
+            $sourceUrl = $keepRemoteMediaUrls ? rtrim($sourceMediaBaseUrl, '/') : '';
+            $this->wpService->updateOption(self::SOURCE_URL_OPTION, $sourceUrl);
+            $this->wpService->updateOption(self::FIRST_LOCAL_ATTACHMENT_ID_OPTION, 0);
+            if (
+                (string) $this->wpService->getOption(self::SOURCE_URL_OPTION, '') !== $sourceUrl
+                || (int) $this->wpService->getOption(self::FIRST_LOCAL_ATTACHMENT_ID_OPTION, 0) !== 0
+            ) {
+                throw new \RuntimeException('Could not configure remote media URLs. Check database permissions.');
+            }
         } finally {
             $this->wpService->restoreCurrentBlog();
+        }
+    }
+
+    /**
+     * Records the first attachment inserted after the database import.
+     *
+     * @param int $attachmentId Newly inserted attachment ID.
+     */
+    public function recordLocalAttachment(int $attachmentId): void
+    {
+        if ((string) $this->wpService->getOption(self::SOURCE_URL_OPTION, '') === '') {
+            return;
+        }
+
+        if ((int) $this->wpService->getOption(self::FIRST_LOCAL_ATTACHMENT_ID_OPTION, 0) !== 0) {
+            return;
+        }
+
+        $this->wpService->updateOption(self::FIRST_LOCAL_ATTACHMENT_ID_OPTION, $attachmentId);
+        if ((int) $this->wpService->getOption(self::FIRST_LOCAL_ATTACHMENT_ID_OPTION, 0) !== $attachmentId) {
+            throw new \RuntimeException('Could not record the first local attachment ID. Check database permissions.');
         }
     }
 
@@ -51,6 +78,11 @@ class RemoteMediaUrlRewriter
     {
         $sourceMediaBaseUrl = (string) $this->wpService->getOption(self::SOURCE_URL_OPTION, '');
         if ($sourceMediaBaseUrl === '') {
+            return $url;
+        }
+
+        $firstLocalAttachmentId = (int) $this->wpService->getOption(self::FIRST_LOCAL_ATTACHMENT_ID_OPTION, 0);
+        if ($firstLocalAttachmentId > 0 && $attachmentId >= $firstLocalAttachmentId) {
             return $url;
         }
 
