@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.5](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.4...v1.6.5) (2026-10-21)
+
+
+### Bug Fixes
+
+* **batch:** run each target in isolation ([63a5085](https://github.com/helsingborg-stad/municipio-clone/commit/63a5085afa640ddd79ac601ab6477a44ededca17))
+* improve sql import speed ([7ea121d](https://github.com/helsingborg-stad/municipio-clone/commit/7ea121d79d149e4a422c372b5c527880e81a80e7))
+
 ## [1.6.4](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.3...v1.6.4) (2026-10-20)
 
 
