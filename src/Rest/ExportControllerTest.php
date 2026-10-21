@@ -16,6 +16,35 @@ use PHPUnit\Framework\TestCase;
  */
 class ExportControllerTest extends TestCase
 {
+    public function testExportResponseReportsGuidPreservationFromManifest(): void
+    {
+        $manifest = new ArtifactManifest(
+            str_repeat('a', 32),
+            'checksum',
+            time(),
+            time() + 3600,
+            'https://source.example.test',
+            2,
+            'wp_2_',
+            'cache-key',
+            '',
+            true,
+        );
+        $service = $this->createStub(ExportService::class);
+        $service->method('create')->willReturn(['manifest' => $manifest, 'cache_status' => 'hit']);
+        $request = new class() {
+            public function get_param(string $name): int
+            {
+                return $name === '_municipio_clone_user_id' ? 1 : 0;
+            }
+        };
+        $controller = new ExportController(new MutableWpService(), $service, $this->createStub(ArtifactStorageInterface::class));
+
+        $response = $controller->handleExport($request);
+
+        $this->assertTrue($response->get_data()['guid_preserved']);
+    }
+
     public function testArtifactDownloadIsStreamedBeforeRestJsonEncoding(): void
     {
         $artifactId = str_repeat('a', 32);

@@ -12,6 +12,9 @@ use MunicipioClone\Support\PlaceholderReplacer;
  */
 class SqlExportGenerator
 {
+    private const MAX_INSERT_ROWS = 256;
+    private const MAX_INSERT_BYTES = 1024 * 1024;
+
     public function __construct(
         private DatabaseConnectionInterface $databaseConnection,
         private DataWasher $dataWasher,
@@ -21,7 +24,7 @@ class SqlExportGenerator
     }
 
     /**
-     * @return array{content_path: string, source_url: string, source_blog_id: int, source_table_prefix: string, source_media_base_url: string}
+     * @return array{content_path: string, source_url: string, source_blog_id: int, source_table_prefix: string, source_media_base_url: string, guid_preserved: bool}
      *         The caller owns the returned content_path and must delete it once it has been stored.
      */
     public function generate(): array
@@ -33,7 +36,12 @@ class SqlExportGenerator
             throw new \RuntimeException('Failed to create a temporary file for the export.');
         }
 
-        $this->writeExportToFile($tempFilePath, $context);
+        try {
+            $this->writeExportToFile($tempFilePath, $context);
+        } catch (\Throwable $throwable) {
+            @unlink($tempFilePath);
+            throw $throwable;
+        }
 
         return [
             'content_path' => $tempFilePath,
@@ -41,6 +49,7 @@ class SqlExportGenerator
             'source_blog_id' => (int) $context['blog_id'],
             'source_table_prefix' => (string) $context['table_prefix'],
             'source_media_base_url' => (string) ($context['media_base_url'] ?? ''),
+            'guid_preserved' => true,
         ];
     }
 
@@ -56,7 +65,7 @@ class SqlExportGenerator
         }
 
         try {
-            fwrite($handle, sprintf('-- Municipio Clone export for %s', $context['source_url']));
+            $this->writeSql($handle, sprintf('-- Municipio Clone export for %s', $context['source_url']));
 
             foreach ($this->databaseConnection->getSiteTables((int) $context['blog_id']) as $table) {
                 if ($this->dataWasher->shouldExcludeTable($table)) {
@@ -68,8 +77,12 @@ class SqlExportGenerator
                     continue;
                 }
 
-                fwrite($handle, sprintf("\n\nDROP TABLE IF EXISTS `%s`;\n%s", $table, rtrim($createStatement, ';') . ';'));
+                $this->writeSql($handle, sprintf("\n\nDROP TABLE IF EXISTS `%s`;\n%s", $table, rtrim($createStatement, ';') . ';'));
 
+                $statement = '';
+                $statementBytes = 0;
+                $columns = [];
+                $rowCount = 0;
                 foreach ($this->databaseConnection->getRows($table) as $row) {
                     $sanitizedRow = $this->dataWasher->washRow($table, $row);
                     foreach ($sanitizedRow as $column => $value) {
@@ -77,7 +90,33 @@ class SqlExportGenerator
                             $sanitizedRow[$column] = $this->placeholderReplacer->replace($value, (string) $context['source_url'], $this->placeholderUrl);
                         }
                     }
-                    fwrite($handle, "\n\n" . $this->buildInsertStatement($table, $sanitizedRow));
+                    $rowColumns = array_keys($sanitizedRow);
+                    $values = '(' . implode(', ', array_map($this->formatValue(...), array_values($sanitizedRow))) . ')';
+                    if ($rowCount > 0 && (
+                        $columns !== $rowColumns
+                        || $rowCount >= self::MAX_INSERT_ROWS
+                        || $statementBytes + 2 + strlen($values) + 1 > self::MAX_INSERT_BYTES
+                    )) {
+                        $this->writeSql($handle, "\n\n" . $statement . ';');
+                        $rowCount = 0;
+                    }
+                    if ($rowCount === 0) {
+                        $columns = $rowColumns;
+                        $statement = sprintf(
+                            'INSERT INTO `%s` (%s) VALUES %s',
+                            $table,
+                            implode(', ', array_map(static fn(string $column): string => sprintf('`%s`', $column), $columns)),
+                            $values,
+                        );
+                        $statementBytes = strlen($statement);
+                    } else {
+                        $statement .= ', ' . $values;
+                        $statementBytes += 2 + strlen($values);
+                    }
+                    ++$rowCount;
+                }
+                if ($rowCount > 0) {
+                    $this->writeSql($handle, "\n\n" . $statement . ';');
                 }
             }
         } finally {
@@ -85,17 +124,21 @@ class SqlExportGenerator
         }
     }
 
-    private function buildInsertStatement(string $table, array $row): string
+    /**
+     * Writes the complete SQL fragment or fails rather than publishing a truncated export.
+     *
+     * @param resource $handle
+     */
+    private function writeSql($handle, string $sql): void
     {
-        $columns = array_map(static fn(string $column): string => sprintf('`%s`', $column), array_keys($row));
-        $values = array_map(fn(mixed $value): string => $this->formatValue($value), array_values($row));
-
-        return sprintf(
-            'INSERT INTO `%s` (%s) VALUES (%s);',
-            $table,
-            implode(', ', $columns),
-            implode(', ', $values),
-        );
+        $length = strlen($sql);
+        for ($offset = 0; $offset < $length;) {
+            $written = fwrite($handle, substr($sql, $offset));
+            if ($written === false || $written === 0) {
+                throw new \RuntimeException('Failed to write the SQL export.');
+            }
+            $offset += $written;
+        }
     }
 
     private function formatValue(mixed $value): string

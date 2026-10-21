@@ -90,6 +90,7 @@ class ExportController
             'source_blog_id' => $manifest->sourceBlogId,
             'source_table_prefix' => $manifest->sourceTablePrefix,
             'source_media_base_url' => $manifest->sourceMediaBaseUrl,
+            'guid_preserved' => $manifest->guidPreserved,
         ], 200);
     }
 

@@ -126,6 +126,63 @@ class CloneCommandTest extends TestCase
         ]);
     }
 
+    public function testMarkedExportSkipsLegacyGuidRestoration(): void
+    {
+        \WP_CLI::$logMessages = [];
+        $previousEnvironment = getenv('WP_ENVIRONMENT_TYPE');
+        putenv('WP_ENVIRONMENT_TYPE=local');
+        $artifactPath = tempnam(sys_get_temp_dir(), 'municipio-clone-test-');
+        file_put_contents($artifactPath, "INSERT INTO `wp_posts` (`guid`) VALUES ('https://source.example.test/post');");
+        $client = $this->createStub(RemoteExportClient::class);
+        $client->method('requestExport')->willReturn([
+            'guid_preserved' => true,
+            'source_table_prefix' => 'wp_',
+        ]);
+        $client->method('downloadArtifact')->willReturn($artifactPath);
+        $siteManager = $this->createStub(TargetSiteManager::class);
+        $siteManager->method('prepare')->willReturn([
+            'url' => 'https://target.example.test',
+            'blog_id' => 1,
+            'table_prefix' => 'wp_',
+        ]);
+        $importer = $this->createMock(DatabaseImporter::class);
+        $importer->expects($this->once())->method('import')->with(
+            $this->callback(static fn(string $path): bool => (string) file_get_contents($path)
+                === "INSERT INTO `wp_posts` (`guid`) VALUES ('https://source.example.test/post');"),
+            $this->anything(),
+            $this->anything(),
+            $this->anything(),
+            $this->anything(),
+            $this->anything(),
+            $this->anything(),
+            $this->anything(),
+            $this->anything(),
+            $this->anything(),
+        );
+        $command = new CloneCommand(
+            new TargetEnvironmentGuard(),
+            static fn(string $username, string $password): RemoteExportClient => $client,
+            $siteManager,
+            new TablePrefixRemapper(),
+            $importer,
+            $this->createStub(LoggerInterface::class),
+        );
+
+        try {
+            $command->handle([], [
+                'source-url' => 'https://source.example.test',
+                'target' => 'https://target.example.test',
+                'username' => 'admin',
+                'application-password' => 'app-password',
+            ]);
+        } finally {
+            putenv($previousEnvironment === false ? 'WP_ENVIRONMENT_TYPE' : 'WP_ENVIRONMENT_TYPE=' . $previousEnvironment);
+        }
+
+        $this->assertFileDoesNotExist($artifactPath);
+        $this->assertNotContains('Restoring legacy GUIDs...', \WP_CLI::$logMessages);
+    }
+
     public function testHandleDownloadsRemapsAndImportsArtifact(): void
     {
         \WP_CLI::$logMessages = [];

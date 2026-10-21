@@ -80,6 +80,7 @@ class EncryptedArtifactStorage implements ArtifactStorageInterface
             (string) $metadata['source_table_prefix'],
             $cacheKey,
             (string) ($metadata['source_media_base_url'] ?? ''),
+            ($metadata['guid_preserved'] ?? false) === true,
         );
 
         $payloadPath = $this->payloadPath($artifactId);

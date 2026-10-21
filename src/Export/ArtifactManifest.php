@@ -19,6 +19,7 @@ class ArtifactManifest
         public readonly string $sourceTablePrefix,
         public readonly string $cacheKey,
         public readonly string $sourceMediaBaseUrl = '',
+        public readonly bool $guidPreserved = false,
     ) {
     }
 
@@ -34,6 +35,7 @@ class ArtifactManifest
             (string) $data['source_table_prefix'],
             (string) $data['cache_key'],
             (string) ($data['source_media_base_url'] ?? ''),
+            ($data['guid_preserved'] ?? false) === true,
         );
     }
 
@@ -49,6 +51,7 @@ class ArtifactManifest
             'source_table_prefix' => $this->sourceTablePrefix,
             'cache_key' => $this->cacheKey,
             'source_media_base_url' => $this->sourceMediaBaseUrl,
+            'guid_preserved' => $this->guidPreserved,
         ];
     }
 }

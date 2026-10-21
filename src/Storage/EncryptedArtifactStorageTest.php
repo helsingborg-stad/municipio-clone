@@ -31,6 +31,41 @@ class EncryptedArtifactStorageTest extends TestCase
         }
     }
 
+    public function testGuidPreservationMarkerSurvivesCachedManifestReload(): void
+    {
+        $storage = new EncryptedArtifactStorage($this->storageDirectory, 'secret', 3600);
+        $contentPath = $this->createContentFile('SELECT 1;');
+
+        try {
+            $manifest = $storage->store('marked', $contentPath, [
+                'source_url' => 'https://source.example.test',
+                'source_blog_id' => 1,
+                'source_table_prefix' => 'wp_',
+                'guid_preserved' => true,
+            ]);
+
+            $this->assertTrue($manifest->guidPreserved);
+            $this->assertTrue($storage->getFresh('marked')?->guidPreserved);
+            $this->assertTrue(json_decode(
+                (string) file_get_contents($this->storageDirectory . '/' . $manifest->artifactId . '.json'),
+                true,
+                flags: JSON_THROW_ON_ERROR,
+            )['guid_preserved']);
+            $this->assertFalse($storage->store('unmarked', $contentPath, [
+                'source_url' => 'https://source.example.test',
+                'source_blog_id' => 1,
+                'source_table_prefix' => 'wp_',
+            ])->guidPreserved);
+            $metadataPath = $this->storageDirectory . '/' . $manifest->artifactId . '.json';
+            $metadata = json_decode((string) file_get_contents($metadataPath), true, flags: JSON_THROW_ON_ERROR);
+            unset($metadata['guid_preserved']);
+            file_put_contents($metadataPath, json_encode($metadata, JSON_THROW_ON_ERROR));
+            $this->assertFalse($storage->getFresh('marked')?->guidPreserved);
+        } finally {
+            unlink($contentPath);
+        }
+    }
+
     public function testStoredArtifactCanBeWrittenToAFileBeforeExpiry(): void
     {
         $storage = new EncryptedArtifactStorage($this->storageDirectory, hash('sha256', 'secret', true), 3600);

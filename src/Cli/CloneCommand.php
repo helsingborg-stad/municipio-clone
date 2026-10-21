@@ -150,16 +150,18 @@ class CloneCommand
                         fn(int $processed, int $total): null => $this->reportStageProgress('Remapping SQL', $processed, $total),
                     ),
                 );
-                $this->runStage(
-                    'legacy_guid_restoration',
-                    'Restoring legacy GUIDs',
-                    fn(): string => $this->legacyGuidRestorer->restoreFile(
-                        $artifactPath,
-                        (string) ($manifest['placeholder_url'] ?? Config::placeholderUrl()),
-                        (string) ($manifest['source_url'] ?? $sourceUrl),
-                        fn(int $processed, int $total): null => $this->reportStageProgress('Restoring GUIDs', $processed, $total),
-                    ),
-                );
+                if (($manifest['guid_preserved'] ?? false) !== true) {
+                    $this->runStage(
+                        'legacy_guid_restoration',
+                        'Restoring legacy GUIDs',
+                        fn(): string => $this->legacyGuidRestorer->restoreFile(
+                            $artifactPath,
+                            (string) ($manifest['placeholder_url'] ?? Config::placeholderUrl()),
+                            (string) ($manifest['source_url'] ?? $sourceUrl),
+                            fn(int $processed, int $total): null => $this->reportStageProgress('Restoring GUIDs', $processed, $total),
+                        ),
+                    );
+                }
                 $this->databaseImporter->import(
                     $artifactPath,
                     (string) $targetSite['url'],

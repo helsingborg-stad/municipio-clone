@@ -117,6 +117,23 @@ class TablePrefixRemapperTest extends TestCase
         }
     }
 
+    public function testRemapsAllSiteScopedKeysInBatchedOptionsInsert(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'municipio_clone_remap_test_');
+        file_put_contents($path, "INSERT INTO `wp_7_options` (`option_name`) VALUES ('wp_7_user_roles'), ('wp_7_capabilities');\n");
+
+        try {
+            (new TablePrefixRemapper())->remapFile($path, 'wp_7_', 'wp_3_');
+
+            $this->assertSame(
+                "INSERT INTO `wp_3_options` (`option_name`) VALUES ('wp_3_user_roles'), ('wp_3_capabilities');\n",
+                file_get_contents($path),
+            );
+        } finally {
+            unlink($path);
+        }
+    }
+
     public function testLeavesArtifactUnchangedWhenPrefixesMatch(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'municipio_clone_remap_test_');
