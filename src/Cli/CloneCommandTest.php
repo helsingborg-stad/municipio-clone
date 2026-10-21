@@ -64,6 +64,68 @@ class CloneCommandTest extends TestCase
         $command->handle([], ['source-url' => 'https://source.example.test', 'target' => 'https://target.example.test']);
     }
 
+    public function testHandleReadsBatchCredentialsFromEnvironment(): void
+    {
+        putenv('MUNICIPIO_CLONE_TEST_USERNAME=environment-user');
+        putenv('MUNICIPIO_CLONE_TEST_PASSWORD=environment-password');
+        $receivedCredentials = [];
+        $siteManager = $this->createStub(TargetSiteManager::class);
+        $siteManager->method('prepare')->willReturn(['url' => 'https://target.example.test']);
+        $command = new CloneCommand(
+            $this->createStub(TargetEnvironmentGuard::class),
+            static function (string $username, string $password) use (&$receivedCredentials): RemoteExportClient {
+                $receivedCredentials = [$username, $password];
+
+                throw new \RuntimeException('Client factory reached.');
+            },
+            $siteManager,
+            $this->createStub(TablePrefixRemapper::class),
+            $this->createStub(DatabaseImporter::class),
+            $this->createStub(LoggerInterface::class),
+        );
+
+        try {
+            try {
+                $command->handle([], [
+                    'source-url' => 'https://source.example.test',
+                    'target' => 'https://target.example.test',
+                    'username-env' => 'MUNICIPIO_CLONE_TEST_USERNAME',
+                    'application-password-env' => 'MUNICIPIO_CLONE_TEST_PASSWORD',
+                ]);
+                $this->fail('Expected the client factory to stop the clone.');
+            } catch (\RuntimeException $exception) {
+                $this->assertSame('Client factory reached.', $exception->getMessage());
+            }
+        } finally {
+            putenv('MUNICIPIO_CLONE_TEST_USERNAME');
+            putenv('MUNICIPIO_CLONE_TEST_PASSWORD');
+        }
+
+        $this->assertSame(['environment-user', 'environment-password'], $receivedCredentials);
+    }
+
+    public function testHandleRejectsMissingEnvironmentCredentials(): void
+    {
+        putenv('MUNICIPIO_CLONE_TEST_MISSING_PASSWORD');
+        $command = new CloneCommand(
+            $this->createStub(TargetEnvironmentGuard::class),
+            static fn(string $username, string $password): RemoteExportClient => throw new \RuntimeException('Should not build client.'),
+            $this->createStub(TargetSiteManager::class),
+            $this->createStub(TablePrefixRemapper::class),
+            $this->createStub(DatabaseImporter::class),
+            $this->createStub(LoggerInterface::class),
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('arguments are required');
+        $command->handle([], [
+            'source-url' => 'https://source.example.test',
+            'target' => 'https://target.example.test',
+            'username' => 'admin',
+            'application-password-env' => 'MUNICIPIO_CLONE_TEST_MISSING_PASSWORD',
+        ]);
+    }
+
     public function testHandleDownloadsRemapsAndImportsArtifact(): void
     {
         \WP_CLI::$logMessages = [];

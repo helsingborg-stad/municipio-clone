@@ -63,7 +63,9 @@ If cloning fails, WP-CLI prints one error describing the failed stage and exits 
 
 ## Batch cloning
 
-Use `wp municipio clone-batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially. Each failed mapping is reported once and does not stop remaining mappings; after all mappings have been attempted, the command prints a failure count and exits with a nonzero status. Use `--debug=municipio-clone` to see exception details and stack traces.
+Use `wp municipio clone-batch` to keep several staging or local sites synchronized from separate production sources. The command processes mappings serially, running each mapping as a new `wp municipio clone` WP-CLI process. This isolates WordPress/PHP state between mappings and retains the single-clone rewrite flush. Credentials are passed to the child process through temporary environment variables rather than command-line arguments. After each successful clone, the batch runs `wp cache flush --url=<target>` in a fresh process; a cache-flush failure produces a warning without failing that mapping. It does not flush after an unsuccessful clone. The target URL selects the site, but some persistent object-cache backends flush a cache shared across the entire installation or network, not only the selected site.
+
+Each failed mapping is reported once and does not stop remaining mappings; after all mappings have been attempted, the command prints a failure count and exits with a nonzero status. Use `--debug=municipio-clone` to see exception details and stack traces.
 
 Store only URLs, flags, and credential references in the JSON configuration. Do not put usernames or application passwords in the file. The `username_env` and `application_password_env` values can name either a PHP constant or an environment variable. A defined PHP constant takes precedence; if it is not defined, the matching environment variable is read.
 

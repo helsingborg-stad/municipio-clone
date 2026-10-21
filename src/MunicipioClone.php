@@ -95,7 +95,7 @@ class MunicipioClone
             );
             \WP_CLI::add_command('municipio clone', [$command, 'run']);
             $batchCommand = new BatchCloneCommand(
-                $command,
+                new WpCliRunner(),
                 new BatchConfigurationLoader(),
                 new TargetLockManager($this->wpService, Config::targetLockTtl()),
                 $cliLogger,

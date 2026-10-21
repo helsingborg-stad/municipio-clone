@@ -98,6 +98,12 @@ class CloneCommand
         $targetUrl = (string) ($associativeArguments['target'] ?? '');
         $username = (string) ($associativeArguments['username'] ?? '');
         $applicationPassword = (string) ($associativeArguments['application-password'] ?? $associativeArguments['password'] ?? '');
+        if ($username === '' && isset($associativeArguments['username-env'])) {
+            $username = (string) getenv((string) $associativeArguments['username-env']);
+        }
+        if ($applicationPassword === '' && isset($associativeArguments['application-password-env'])) {
+            $applicationPassword = (string) getenv((string) $associativeArguments['application-password-env']);
+        }
         if ($sourceUrl === '' || $targetUrl === '' || $username === '' || $applicationPassword === '') {
             throw new \InvalidArgumentException('The --source-url, --target, --username, and --application-password arguments are required.');
         }
