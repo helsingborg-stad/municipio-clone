@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.6](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.5...v1.6.6) (2026-10-21)
+
+
+### Bug Fixes
+
+* error on url path update ([a93f681](https://github.com/helsingborg-stad/municipio-clone/commit/a93f681981b8363a13f473e3e5801791f44b71c7))
+
+
+### Performance Improvements
+
+* **import:** batch remote SQL inserts and skip redundant GUID pass ([4418cc9](https://github.com/helsingborg-stad/municipio-clone/commit/4418cc98d8fdaa652114bb15c776900102ba73e5))
+
 ## [1.6.5](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.4...v1.6.5) (2026-10-21)
 
 
