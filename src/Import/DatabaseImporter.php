@@ -46,6 +46,15 @@ class DatabaseImporter
             'upload_path' => $storedOptions->get($targetBlogId, 'upload_path') ?? '',
             'upload_url_path' => $storedOptions->get($targetBlogId, 'upload_url_path') ?? '',
         ];
+        $this->wpService->switchToBlog($targetBlogId);
+        try {
+            $effectiveUploadOptions = [];
+            foreach ($targetUploadOptions as $name => $value) {
+                $effectiveUploadOptions[$name] = (string) $this->wpService->getOption($name, '');
+            }
+        } finally {
+            $this->wpService->restoreCurrentBlog();
+        }
 
         $this->runStage(
             $stageRunner,
@@ -109,7 +118,7 @@ class DatabaseImporter
             $stageRunner,
             'upload_configuration_restoration',
             'Restoring target upload configuration',
-            fn(): null => $this->restoreUploadOptions($targetBlogId, $targetUploadOptions, $storedOptions),
+            fn(): null => $this->restoreUploadOptions($targetBlogId, $targetUploadOptions, $effectiveUploadOptions, $storedOptions),
         );
         $this->runStage(
             $stageRunner,
@@ -172,8 +181,9 @@ class DatabaseImporter
      * Restores the target's upload settings instead of retaining the source's paths.
      *
      * @param array<string, string> $targetUploadOptions
+     * @param array<string, string> $effectiveUploadOptions
      */
-    private function restoreUploadOptions(int $targetBlogId, array $targetUploadOptions, StoredSiteOptions $storedOptions): null
+    private function restoreUploadOptions(int $targetBlogId, array $targetUploadOptions, array $effectiveUploadOptions, StoredSiteOptions $storedOptions): null
     {
         $this->wpService->switchToBlog($targetBlogId);
         try {
@@ -184,7 +194,7 @@ class DatabaseImporter
             $this->wpService->wpCacheDelete('notoptions', 'options');
             foreach ($targetUploadOptions as $name => $value) {
                 $this->wpService->wpCacheDelete($name, 'options');
-                if ($storedOptions->get($targetBlogId, $name) !== $value || (string) $this->wpService->getOption($name, '') !== $value) {
+                if ($storedOptions->get($targetBlogId, $name) !== $value || (string) $this->wpService->getOption($name, '') !== $effectiveUploadOptions[$name]) {
                     throw new \RuntimeException(sprintf('Could not restore target option "%s". Check database permissions and option filters.', $name));
                 }
             }

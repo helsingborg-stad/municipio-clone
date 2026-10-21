@@ -392,6 +392,87 @@ class DatabaseImporterTest extends TestCase
         $this->assertSame('http://localhost:8080/wp-content/uploads/networks/1', $wpService->options[3]['upload_url_path']);
     }
 
+    public function testPreservesFilteredTargetUploadSettingsAfterImport(): void
+    {
+        $wpService = new class() extends MutableWpService {
+            public function getOption(string $option, mixed $defaultValue = false): mixed
+            {
+                if ($option === 'upload_path') {
+                    return '/effective/local/uploads';
+                }
+
+                return parent::getOption($option, $defaultValue);
+            }
+        };
+        $wpService->options[3]['upload_path'] = '/stored/local/uploads';
+        $runner = new class($wpService) extends WpCliRunner {
+            public function __construct(private MutableWpService $wpService)
+            {
+            }
+
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->wpService->options[3]['upload_path'] = '/source/uploads';
+            }
+
+            public function run(string $command): string
+            {
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['wp_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))
+            ->import('/tmp/export.sql', 'http://localhost:8080/site', 3, 'wp_3_');
+
+        $this->assertSame('/stored/local/uploads', $wpService->options[3]['upload_path']);
+        $this->assertSame(1, $wpService->currentBlogId);
+    }
+
+    public function testRejectsUploadSettingsWhoseEffectiveValueChangesAfterImport(): void
+    {
+        $wpService = new class() extends MutableWpService {
+            public string $effectiveUploadPath = '/effective/local/uploads';
+
+            public function getOption(string $option, mixed $defaultValue = false): mixed
+            {
+                return $option === 'upload_path' ? $this->effectiveUploadPath : parent::getOption($option, $defaultValue);
+            }
+        };
+        $wpService->options[3]['upload_path'] = '/stored/local/uploads';
+        $runner = new class($wpService) extends WpCliRunner {
+            public function __construct(private MutableWpService $wpService)
+            {
+            }
+
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->wpService->effectiveUploadPath = '/effective/source/uploads';
+            }
+
+            public function run(string $command): string
+            {
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['wp_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Could not restore target option "upload_path"');
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))
+            ->import('/tmp/export.sql', 'http://localhost:8080/site', 3, 'wp_3_');
+    }
+
     public function testRejectsUploadSettingsThatCannotBeRestored(): void
     {
         $wpService = new MutableWpService();
