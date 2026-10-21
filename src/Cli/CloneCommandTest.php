@@ -205,15 +205,14 @@ SQL),
                 'https://target.example.test/site/wp',
                 $this->isCallable(),
             )
-            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, string $sourceMediaBaseUrl, string $targetSiteUrl, callable $onImportProgress): void {
+            ->willReturnCallback(static function (string $path, string $targetUrl, int $blogId, string $tablePrefix, callable $stageRunner, string $sourceUrl, bool $keepRemoteMediaUrls, string $sourceMediaBaseUrl, string $targetSiteUrl, callable $onImportWait): void {
                 self::assertSame('https://source.example.test', $sourceUrl);
                 self::assertTrue($keepRemoteMediaUrls);
                 self::assertSame('https://media.example.test/uploads', $sourceMediaBaseUrl);
                 self::assertSame('https://target.example.test/site/wp', $targetSiteUrl);
-                $stageRunner('database_import', 'Importing SQL into the target database', static function () use ($onImportProgress): null {
-                    $onImportProgress(0, 1024, false);
-                    $onImportProgress(1024, 1024, true);
-                    $onImportProgress(1024, 1024, true);
+                $stageRunner('database_import', 'Importing SQL into the target database', static function () use ($onImportWait): null {
+                    $onImportWait();
+                    $onImportWait();
 
                     return null;
                 });
@@ -256,8 +255,7 @@ SQL),
             'Restoring GUIDs: 0% (0.0 KB of 0.4 KB)',
             'Restoring GUIDs: 100% (0.4 KB of 0.4 KB)',
             'Importing SQL into the target database...',
-            'Sending SQL to importer: 0% (0.0 KB of 1.0 KB)',
-            'Sending SQL to importer: 100% (1.0 KB of 1.0 KB); waiting for database import to finish...',
+            'Importing SQL file; waiting for database import to finish...',
             'Discovering imported database tables...',
             'Keeping remote media URLs...',
             'Replacing source URLs in imported data...',

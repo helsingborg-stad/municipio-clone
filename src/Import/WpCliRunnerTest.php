@@ -12,12 +12,12 @@ use PHPUnit\Framework\TestCase;
  */
 class WpCliRunnerTest extends TestCase
 {
-    public function testStreamingImportInheritsExplicitRootAuthorization(): void
+    public function testFileImportInheritsExplicitRootAuthorization(): void
     {
         $runner = new class() extends WpCliRunner {
-            public function command(): array
+            public function command(string $path): array
             {
-                return $this->importCommand();
+                return $this->importCommand($path);
             }
         };
         $previousArguments = $GLOBALS['argv'] ?? null;
@@ -30,11 +30,11 @@ class WpCliRunnerTest extends TestCase
                 realpath(__FILE__),
                 'db',
                 'import',
-                '-',
+                '/tmp/export.sql',
                 '--path=/var/www/wordpress',
                 '--url=https://stage.example.test/site',
                 '--allow-root',
-            ], $runner->command());
+            ], $runner->command('/tmp/export.sql'));
 
             \WP_CLI::$config['allow-root'] = false;
             $this->assertSame([
@@ -42,10 +42,10 @@ class WpCliRunnerTest extends TestCase
                 realpath(__FILE__),
                 'db',
                 'import',
-                '-',
+                '/tmp/export.sql',
                 '--path=/var/www/wordpress',
                 '--url=https://stage.example.test/site',
-            ], $runner->command());
+            ], $runner->command('/tmp/export.sql'));
         } finally {
             \WP_CLI::$config = [];
             if ($previousArguments === null) {
@@ -56,38 +56,35 @@ class WpCliRunnerTest extends TestCase
         }
     }
 
-    public function testStreamsArtifactAndReportsBytesUntilChildCompletes(): void
+    public function testFileImportReadsChildOutputWithoutDeadlocking(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'municipio_clone_stream_test_');
-        $sql = str_repeat("SELECT 'payload';\n", 8000);
-        file_put_contents($path, $sql);
+        file_put_contents($path, str_repeat("SELECT 'payload';\n", 8000));
         $runner = new class() extends WpCliRunner {
-            protected function importCommand(): array
+            protected function importCommand(string $path): array
             {
-                return [PHP_BINARY, '-r', 'fwrite(STDOUT, str_repeat("x", 131072)); while (!feof(STDIN)) { $chunk = fread(STDIN, 16384); if ($chunk === false) { exit(3); } } fwrite(STDOUT, "Done");'];
+                return [PHP_BINARY, '-r', 'fwrite(STDOUT, str_repeat("x", 131072)); fwrite(STDERR, str_repeat("y", 131072)); if (file_get_contents($argv[1]) === false) { exit(3); } fwrite(STDOUT, "Done");', $path];
             }
         };
-        $updates = [];
 
+        $waits = 0;
         try {
-            $runner->importFromStream($path, static function (int $sent, int $total, bool $waiting) use (&$updates): void {
-                $updates[] = [$sent, $total, $waiting];
+            $runner->importFromFile($path, static function () use (&$waits): void {
+                $waits++;
             });
-
-            $this->assertSame([0, strlen($sql), false], $updates[0]);
-            $this->assertContains([strlen($sql), strlen($sql), true], $updates);
-            $this->assertGreaterThan(2, count($updates));
+            $this->assertFileExists($path);
+            $this->assertGreaterThan(0, $waits);
         } finally {
             @unlink($path);
         }
     }
 
-    public function testStreamingImportReportsChildFailureWithoutClaimingSuccess(): void
+    public function testFileImportReportsChildFailureWithoutClaimingSuccess(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'municipio_clone_stream_test_');
         file_put_contents($path, 'SELECT 1;');
         $runner = new class() extends WpCliRunner {
-            protected function importCommand(): array
+            protected function importCommand(string $path): array
             {
                 return [PHP_BINARY, '-r', 'fwrite(STDERR, "Import rejected."); exit(7);'];
             }
@@ -96,33 +93,35 @@ class WpCliRunnerTest extends TestCase
         try {
             $this->expectException(\RuntimeException::class);
             $this->expectExceptionMessage('WP-CLI database import failed with exit code 7: Import rejected.');
-            $runner->importFromStream($path, static function (int $sent, int $total, bool $waiting): void {
-            });
+            $runner->importFromFile($path);
         } finally {
             @unlink($path);
         }
     }
 
-    public function testStreamingImportHandlesEmptyArtifact(): void
+    public function testFileImportHandlesEmptyArtifact(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'municipio_clone_stream_test_');
         $runner = new class() extends WpCliRunner {
-            protected function importCommand(): array
+            protected function importCommand(string $path): array
             {
-                return [PHP_BINARY, '-r', 'if (stream_get_contents(STDIN) !== "") { exit(4); }'];
+                return [PHP_BINARY, '-r', 'if (file_get_contents($argv[1]) !== "") { exit(4); }', $path];
             }
         };
-        $updates = [];
 
         try {
-            $runner->importFromStream($path, static function (int $sent, int $total, bool $waiting) use (&$updates): void {
-                $updates[] = [$sent, $total, $waiting];
-            });
-
-            $this->assertSame([0, 0, true], $updates[0]);
+            $runner->importFromFile($path);
         } finally {
             @unlink($path);
         }
+    }
+
+    public function testFileImportRejectsMissingArtifact(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Failed to open the SQL artifact');
+
+        (new WpCliRunner())->importFromFile('/tmp/municipio-clone-missing-artifact.sql');
     }
 
     protected function tearDown(): void

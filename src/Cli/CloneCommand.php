@@ -170,7 +170,7 @@ class CloneCommand
                     $keepRemoteMediaUrls,
                     (string) ($manifest['source_media_base_url'] ?? ''),
                     (string) ($targetSite['siteurl'] ?? $targetSite['url']),
-                    fn(int $sent, int $total, bool $waiting): null => $this->reportStageProgress('Sending SQL to importer', $sent, $total, $waiting),
+                    fn(): null => $this->reportImportWait(),
                 );
             } finally {
                 @unlink($artifactPath);
@@ -317,6 +317,20 @@ class CloneCommand
             'total_bytes' => $totalBytes,
             'percentage' => $percentage,
         ]);
+
+        return null;
+    }
+
+    /**
+     * Keeps long-running imports visible without treating SQL bytes as committed rows.
+     */
+    private function reportImportWait(): null
+    {
+        $now = microtime(true);
+        if ($this->lastStageProgressLogAt === 0.0 || $now - $this->lastStageProgressLogAt >= 5) {
+            $this->writeProgress('Importing SQL file; waiting for database import to finish...');
+            $this->lastStageProgressLogAt = $now;
+        }
 
         return null;
     }

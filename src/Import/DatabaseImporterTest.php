@@ -17,16 +17,17 @@ use PHPUnit\Framework\TestCase;
  */
 class DatabaseImporterTest extends TestCase
 {
-    public function testImportsThroughStreamingRunnerWhenProgressIsRequested(): void
+    public function testImportsThroughFileRunner(): void
     {
         $runner = new class() extends WpCliRunner {
             public array $commands = [];
 
-            public function importFromStream(string $path, callable $onProgress): void
+            public function importFromFile(string $path, ?callable $onWait = null): void
             {
-                $this->commands[] = 'stream:' . $path;
-                $onProgress(0, 100, false);
-                $onProgress(100, 100, true);
+                $this->commands[] = 'file:' . $path;
+                if ($onWait !== null) {
+                    $onWait();
+                }
             }
 
             public function run(string $command): string
@@ -43,21 +44,20 @@ class DatabaseImporterTest extends TestCase
             public function getRows(string $table): iterable { return []; }
         };
         $wpService = new MutableWpService();
-        $updates = [];
-
+        $waits = 0;
         (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))
             ->import(
                 '/tmp/export.sql',
                 'http://localhost:8080/hbgtest',
                 3,
                 'mun_3_',
-                onImportProgress: static function (int $sent, int $total, bool $waiting) use (&$updates): void {
-                    $updates[] = [$sent, $total, $waiting];
+                onImportWait: static function () use (&$waits): void {
+                    $waits++;
                 },
             );
 
-        $this->assertSame('stream:/tmp/export.sql', $runner->commands[0]);
-        $this->assertSame([[0, 100, false], [100, 100, true]], $updates);
+        $this->assertSame('file:/tmp/export.sql', $runner->commands[0]);
+        $this->assertSame(1, $waits);
         $this->assertCount(2, $runner->commands);
     }
 
@@ -87,6 +87,11 @@ class DatabaseImporterTest extends TestCase
     {
         $runner = new class() extends WpCliRunner {
             public array $commands = [];
+
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->commands[] = 'file:' . $path;
+            }
 
             public function run(string $command): string
             {
@@ -170,6 +175,10 @@ class DatabaseImporterTest extends TestCase
     public function testFailsWhenWordPressOverridesTheTargetSiteUrl(): void
     {
         $runner = new class() extends WpCliRunner {
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+            }
+
             public function run(string $command): string
             {
                 return '';
@@ -225,6 +234,10 @@ class DatabaseImporterTest extends TestCase
         $wpService = new MutableWpService();
         $wpService->options[3] = ['home' => 'https://source.example.test', 'siteurl' => 'https://source.example.test/wp'];
         $runner = new class() extends WpCliRunner {
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+            }
+
             public function run(string $command): string
             {
                 return '';
@@ -262,6 +275,10 @@ class DatabaseImporterTest extends TestCase
             }
         };
         $runner = new class() extends WpCliRunner {
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+            }
+
             public function run(string $command): string { return ''; }
         };
         $databaseConnection = new class() implements DatabaseConnectionInterface {
@@ -281,6 +298,11 @@ class DatabaseImporterTest extends TestCase
     {
         $runner = new class() extends WpCliRunner {
             public array $commands = [];
+
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->commands[] = 'file:' . $path;
+            }
 
             public function run(string $command): string
             {
@@ -345,13 +367,14 @@ class DatabaseImporterTest extends TestCase
             {
             }
 
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->wpService->options[3]['upload_path'] = '/production/uploads/networks/5';
+                $this->wpService->options[3]['upload_url_path'] = 'https://media.example.test/networks/5';
+            }
+
             public function run(string $command): string
             {
-                if (str_starts_with($command, 'db import')) {
-                    $this->wpService->options[3]['upload_path'] = '/production/uploads/networks/5';
-                    $this->wpService->options[3]['upload_url_path'] = 'https://media.example.test/networks/5';
-                }
-
                 return '';
             }
         };
@@ -385,12 +408,13 @@ class DatabaseImporterTest extends TestCase
             {
             }
 
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->wpService->options[3]['upload_url_path'] = 'https://media.example.test/uploads';
+            }
+
             public function run(string $command): string
             {
-                if (str_starts_with($command, 'db import')) {
-                    $this->wpService->options[3]['upload_url_path'] = 'https://media.example.test/uploads';
-                }
-
                 return '';
             }
         };
@@ -411,6 +435,11 @@ class DatabaseImporterTest extends TestCase
     {
         $runner = new class() extends WpCliRunner {
             public array $commands = [];
+
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->commands[] = 'file:' . $path;
+            }
 
             public function run(string $command): string
             {
@@ -462,6 +491,10 @@ class DatabaseImporterTest extends TestCase
     public function testFailsWhenNoTargetTablesAreDiscovered(): void
     {
         $runner = new class() extends WpCliRunner {
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+            }
+
             public function run(string $command): string
             {
                 return '';
