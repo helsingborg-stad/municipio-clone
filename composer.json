@@ -6,7 +6,7 @@
   "require": {
     "php": "^8.3",
     "ext-sodium": "*",
-    "helsingborg-stad/wpservice": "2.0.9"
+    "helsingborg-stad/wpservice": "3.0.0"
   },
   "autoload": {
     "psr-4": {
