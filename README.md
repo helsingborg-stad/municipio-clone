@@ -2,6 +2,8 @@
 
 WordPress plugin that adds a sanitized export REST API and a `wp municipio clone` WP-CLI command for pulling masked database snapshots from another WordPress site.
 
+Requires PHP 8.3 through 8.5 and the sodium extension. The PHP upper bound comes from wpservice 3.0.0.
+
 ## Features
 
 - `wp municipio clone --source-url=<source> --target=<target> --username=<username> --application-password=<password> [--force] [--keep-remote-media-urls]`

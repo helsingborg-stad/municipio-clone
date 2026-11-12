@@ -192,7 +192,7 @@ class MutableWpService extends FakeWpService
         return true;
     }
 
-    public function switchToBlog(int $newBlogId, bool $deprecated = null): true
+    public function switchToBlog(int $newBlogId, bool|null $deprecated = null): true
     {
         $this->currentBlogId = $newBlogId;
 
