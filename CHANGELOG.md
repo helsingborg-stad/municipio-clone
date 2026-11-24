@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.8](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.7...v1.6.8) (2026-11-24)
+
+
+### Bug Fixes
+
+* clear option caches before updating options ([328e779](https://github.com/helsingborg-stad/municipio-clone/commit/328e7794380d03af2e3292d97e099f6d203c4b31))
+
 ## [1.6.7](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.6...v1.6.7) (2026-11-24)
 
 
