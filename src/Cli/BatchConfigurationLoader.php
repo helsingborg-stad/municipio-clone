@@ -54,6 +54,7 @@ class BatchConfigurationLoader
                 $this->optionalBoolean($mapping, 'force', $index),
                 $this->optionalBoolean($mapping, 'keep_remote_media_urls', $index),
                 array_key_exists('target_siteurl', $mapping) ? $this->requiredUrl($mapping, 'target_siteurl', $index) : null,
+                array_key_exists('source_rest_url', $mapping) ? $this->requiredUrl($mapping, 'source_rest_url', $index) : null,
             );
         }
 
@@ -64,6 +65,7 @@ class BatchConfigurationLoader
     {
         $allowedKeys = [
             'source_url',
+            'source_rest_url',
             'target',
             'target_siteurl',
             'username_env',

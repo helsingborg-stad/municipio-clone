@@ -17,6 +17,7 @@ class CloneMapping
      * @param bool $force Whether to request a fresh remote export.
      * @param bool $keepRemoteMediaUrls Whether to retain remote media URLs.
      * @param ?string $targetSiteUrl Explicit WordPress installation URL.
+     * @param ?string $sourceRestUrl Explicit source REST API root, when it is not discoverable.
      */
     public function __construct(
         public readonly string $sourceUrl,
@@ -26,6 +27,7 @@ class CloneMapping
         public readonly bool $force,
         public readonly bool $keepRemoteMediaUrls,
         public readonly ?string $targetSiteUrl = null,
+        public readonly ?string $sourceRestUrl = null,
     ) {
     }
 
@@ -49,6 +51,7 @@ class CloneMapping
 
         return array_filter([
             'source-url' => $this->sourceUrl,
+            'source-rest-url' => $this->sourceRestUrl,
             'target' => $this->targetUrl,
             'target-siteurl' => $this->targetSiteUrl,
             'username' => $username,
