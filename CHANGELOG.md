@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.7](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.6...v1.6.7) (2026-11-24)
+
+
+### Bug Fixes
+
+* auto discover rest api base url ([#52](https://github.com/helsingborg-stad/municipio-clone/issues/52)) ([b788d05](https://github.com/helsingborg-stad/municipio-clone/commit/b788d05aff704ed4fe74599de0535093e6a6ea27))
+
 ## [1.6.6](https://github.com/helsingborg-stad/municipio-clone/compare/v1.6.5...v1.6.6) (2026-10-21)
 
 
