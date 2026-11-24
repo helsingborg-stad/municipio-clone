@@ -161,6 +161,10 @@ class DatabaseImporterTest extends TestCase
         $this->assertSame([
             [3, 'alloptions', 'options'],
             [3, 'notoptions', 'options'],
+            [3, 'upload_path', 'options'],
+            [3, 'upload_url_path', 'options'],
+            [3, 'alloptions', 'options'],
+            [3, 'notoptions', 'options'],
             [3, 'home', 'options'],
             [3, 'siteurl', 'options'],
             [3, 'alloptions', 'options'],
@@ -432,6 +436,57 @@ class DatabaseImporterTest extends TestCase
 
         $this->assertSame('/stored/local/uploads', $wpService->options[3]['upload_path']);
         $this->assertSame(1, $wpService->currentBlogId);
+    }
+
+    public function testIgnoresStaleOptionCacheOfNewlyCreatedTargetSite(): void
+    {
+        $wpService = new class() extends MutableWpService {
+            /** @var array<string, string> */
+            public array $staleCache = ['upload_path' => ''];
+
+            public function getOption(string $option, mixed $defaultValue = false): mixed
+            {
+                return array_key_exists($option, $this->staleCache)
+                    ? $this->staleCache[$option]
+                    : parent::getOption($option, $defaultValue);
+            }
+
+            public function wpCacheDelete(int|string $key, string $group = ''): bool
+            {
+                if ($group === 'options' && ($key === 'alloptions' || $key === 'upload_path')) {
+                    $this->staleCache = [];
+                }
+
+                return parent::wpCacheDelete($key, $group);
+            }
+        };
+        $wpService->options[3]['upload_path'] = '/local/uploads/networks/1';
+        $runner = new class($wpService) extends WpCliRunner {
+            public function __construct(private MutableWpService $wpService)
+            {
+            }
+
+            public function importFromFile(string $path, ?callable $onWait = null): void
+            {
+                $this->wpService->options[3]['upload_path'] = '/source/uploads';
+            }
+
+            public function run(string $command): string
+            {
+                return '';
+            }
+        };
+        $databaseConnection = new class() implements DatabaseConnectionInterface {
+            public function getSiteContext(): array { return []; }
+            public function getSiteTables(int $blogId): array { return ['wp_3_options']; }
+            public function getCreateTableStatement(string $table): string { return ''; }
+            public function getRows(string $table): iterable { return []; }
+        };
+
+        (new DatabaseImporter($runner, 'https://clone.invalid', $wpService, $databaseConnection, new RemoteMediaUrlRewriter($wpService), new FakeStoredSiteOptions($wpService)))
+            ->import('/tmp/export.sql', 'http://localhost:8080/site', 3, 'wp_3_');
+
+        $this->assertSame('/local/uploads/networks/1', $wpService->options[3]['upload_path']);
     }
 
     public function testRejectsUploadSettingsWhoseEffectiveValueChangesAfterImport(): void

@@ -48,6 +48,9 @@ class DatabaseImporter
         ];
         $this->wpService->switchToBlog($targetBlogId);
         try {
+            // A subsite created earlier in this process can have stale option caches, which would
+            // otherwise be captured as the expected effective values and fail the restore check.
+            $this->flushOptionCaches(array_keys($targetUploadOptions));
             $effectiveUploadOptions = [];
             foreach ($targetUploadOptions as $name => $value) {
                 $effectiveUploadOptions[$name] = (string) $this->wpService->getOption($name, '');
@@ -190,10 +193,8 @@ class DatabaseImporter
             foreach ($targetUploadOptions as $name => $value) {
                 $storedOptions->set($targetBlogId, $name, $value);
             }
-            $this->wpService->wpCacheDelete('alloptions', 'options');
-            $this->wpService->wpCacheDelete('notoptions', 'options');
+            $this->flushOptionCaches(array_keys($targetUploadOptions));
             foreach ($targetUploadOptions as $name => $value) {
-                $this->wpService->wpCacheDelete($name, 'options');
                 if ($storedOptions->get($targetBlogId, $name) !== $value || (string) $this->wpService->getOption($name, '') !== $effectiveUploadOptions[$name]) {
                     throw new \RuntimeException(sprintf('Could not restore target option "%s". Check database permissions and option filters.', $name));
                 }
@@ -203,6 +204,20 @@ class DatabaseImporter
         }
 
         return null;
+    }
+
+    /**
+     * Clears the current site's option caches so reads reflect the stored values.
+     *
+     * @param string[] $optionNames
+     */
+    private function flushOptionCaches(array $optionNames): void
+    {
+        $this->wpService->wpCacheDelete('alloptions', 'options');
+        $this->wpService->wpCacheDelete('notoptions', 'options');
+        foreach ($optionNames as $name) {
+            $this->wpService->wpCacheDelete($name, 'options');
+        }
     }
 
     private function runStage(?callable $stageRunner, string $stage, string $label, callable $operation): mixed
