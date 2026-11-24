@@ -95,6 +95,7 @@ class CloneCommand
     {
         $this->failedStageLabel = null;
         $sourceUrl = (string) ($associativeArguments['source-url'] ?? '');
+        $sourceRestUrl = (string) ($associativeArguments['source-rest-url'] ?? '');
         $targetUrl = (string) ($associativeArguments['target'] ?? '');
         $username = (string) ($associativeArguments['username'] ?? '');
         $applicationPassword = (string) ($associativeArguments['application-password'] ?? $associativeArguments['password'] ?? '');
@@ -106,6 +107,10 @@ class CloneCommand
         }
         if ($sourceUrl === '' || $targetUrl === '' || $username === '' || $applicationPassword === '') {
             throw new \InvalidArgumentException('The --source-url, --target, --username, and --application-password arguments are required.');
+        }
+
+        if ($sourceRestUrl !== '' && filter_var($sourceRestUrl, FILTER_VALIDATE_URL) === false) {
+            throw new \InvalidArgumentException('The --source-rest-url argument must be an absolute URL.');
         }
 
         $force = array_key_exists('force', $associativeArguments) && (string) $associativeArguments['force'] !== 'false';
@@ -128,7 +133,7 @@ class CloneCommand
             $manifest = $this->runStage(
                 'remote_export',
                 'Requesting remote export',
-                fn(): array => $remoteExportClient->requestExport($sourceUrl, $force),
+                fn(): array => $remoteExportClient->requestExport($sourceUrl, $force, $sourceRestUrl !== '' ? $sourceRestUrl : null),
             );
             $artifactPath = $this->runStage(
                 'artifact_download',

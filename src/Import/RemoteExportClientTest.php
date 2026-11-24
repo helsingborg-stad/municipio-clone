@@ -35,6 +35,86 @@ class RemoteExportClientTest extends TestCase
         $client->requestExport('https://source.example.test', false);
     }
 
+    public function testRequestExportUsesDiscoveredCustomRestPrefix(): void
+    {
+        $requests = [];
+        $client = new RemoteExportClient('admin', 'app-password', static function (string $method, string $url) use (&$requests): array {
+            $requests[] = [$method, $url];
+            if ($method === 'HEAD') {
+                return ['', ['HTTP/1.1 200 OK', 'Link: <https://source.example.test/json/>; rel="https://api.w.org/", <https://source.example.test/json/wp/v2/pages/2>; rel="alternate"; type="application/json"']];
+            }
+
+            return ['{"artifact_id":"artifact"}', ['HTTP/1.1 200 OK']];
+        });
+
+        $manifest = $client->requestExport('https://source.example.test/', false);
+
+        $this->assertSame([
+            ['HEAD', 'https://source.example.test/'],
+            ['POST', 'https://source.example.test/json/municipio-clone/v1/export'],
+        ], $requests);
+        $this->assertSame('https://source.example.test', $manifest['requested_source_origin']);
+    }
+
+    public function testRequestExportFallsBackToWpJsonWhenDiscoveryFails(): void
+    {
+        $postedUrl = null;
+        $client = new RemoteExportClient('admin', 'app-password', static function (string $method, string $url) use (&$postedUrl): array {
+            if ($method === 'HEAD') {
+                throw new \RuntimeException('HEAD not allowed.');
+            }
+            $postedUrl = $url;
+
+            return ['{}', ['HTTP/1.1 200 OK']];
+        });
+
+        $client->requestExport('https://source.example.test/site-a', false);
+
+        $this->assertSame('https://source.example.test/site-a/wp-json/municipio-clone/v1/export', $postedUrl);
+    }
+
+    public function testDiscoveryIgnoresCrossOriginRestLinks(): void
+    {
+        $client = new RemoteExportClient('admin', 'app-password', static fn(): array => [
+            '',
+            ['HTTP/1.1 200 OK', 'Link: <https://attacker.example.test/wp-json/>; rel="https://api.w.org/"'],
+        ]);
+
+        $this->assertSame('https://source.example.test/wp-json/', $client->discoverRestRoot('https://source.example.test'));
+    }
+
+    public function testRequestExportSupportsPlainPermalinkRestRoute(): void
+    {
+        $postedUrl = null;
+        $client = new RemoteExportClient('admin', 'app-password', static function (string $method, string $url) use (&$postedUrl): array {
+            if ($method === 'HEAD') {
+                return ['', ['HTTP/1.1 200 OK', 'Link: <https://source.example.test/?rest_route=/>; rel="https://api.w.org/"']];
+            }
+            $postedUrl = $url;
+
+            return ['{}', ['HTTP/1.1 200 OK']];
+        });
+
+        $client->requestExport('https://source.example.test', false);
+
+        $this->assertSame('https://source.example.test/?rest_route=%2Fmunicipio-clone%2Fv1%2Fexport', $postedUrl);
+    }
+
+    public function testRequestExportUsesExplicitRestUrlWithoutDiscovery(): void
+    {
+        $requests = [];
+        $client = new RemoteExportClient('admin', 'app-password', static function (string $method, string $url) use (&$requests): array {
+            $requests[] = [$method, $url];
+
+            return ['{}', ['HTTP/1.1 200 OK']];
+        });
+
+        $manifest = $client->requestExport('https://source.example.test', false, 'https://api.example.test/json/');
+
+        $this->assertSame([['POST', 'https://api.example.test/json/municipio-clone/v1/export']], $requests);
+        $this->assertSame('https://api.example.test', $manifest['requested_source_origin']);
+    }
+
     public function testDownloadArtifactRejectsMissingDownloadUrl(): void
     {
         $client = new RemoteExportClient('admin', 'app-password', static fn(string $method, string $url, ?array $payload, string $username, string $applicationPassword): array => [

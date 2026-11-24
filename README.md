@@ -7,7 +7,7 @@ WordPress plugin that adds a sanitized export REST API and a `wp municipio clone
 - `wp municipio clone --source-url=<source> --target=<target> --username=<username> --application-password=<password> [--force] [--keep-remote-media-urls]`
 - `wp municipio clone-batch --config=<path>` for synchronizing several configured source-to-target mappings
 - Add `--target-siteurl=<installation-url>` when the WordPress installation URL differs from the public `--target` URL.
-- REST export endpoint at `/wp-json/municipio-clone/v1/export`
+- REST export endpoint at `/wp-json/municipio-clone/v1/export` (the source's REST API root is auto-discovered, so a custom prefix such as `/json/` also works)
 - WordPress Application Password authentication with the `municipio_clone_export` capability
 - Encrypted artifact cache with configurable TTL
 - Built-in washer rules for comments, WooCommerce customer data, and common form-entry tables
@@ -55,6 +55,8 @@ The importer inherits the current WP-CLI site's `--path` and `--url` and forward
 The immutable-artifact behavior is provided by the source site's plugin; existing clone clients remain compatible because the manifest and download URL contract is unchanged apart from an optional GUID-preservation marker.
 
 An older source plugin may still export expanded placeholder URLs in `guid` values. The target restores these GUIDs before import when the marker is absent, including for a cached older artifact, without forcing a new export on the source. Update the source plugin to benefit from batched inserts and the skipped rewrite; force a new export if the cached artifact predates the marker. Existing imported data from a failed attempt should be treated as incomplete until the clone succeeds.
+
+The clone discovers the source REST API root from the `Link: <...>; rel="https://api.w.org/"` header returned by the source URL (following redirects). It uses the root only if it has the same origin as the source URL; otherwise it falls back to `<source>/wp-json/`. If a source does not advertise its root, pass `--source-rest-url=https://source.example.se/json/` (or set `source_rest_url` in a batch mapping) to set it explicitly.
 
 Pass `--keep-remote-media-urls` to retain source-site URLs for files under `wp-content/uploads`. On multisite, attachment URLs retain the source site's uploads path; other source URLs are replaced with `--target` except `guid` values, which retain their source identifiers.
 The clone preserves the target site's stored `upload_path` and `upload_url_path` settings instead of importing the source's upload configuration. It also checks that their effective (possibly filtered) values remain unchanged after import. Ensure these target settings resolve to writable local storage and a URL served by the target. Imported attachments continue to use source media URLs, while attachments uploaded after the clone use the target's upload URL. On an existing clone with a production-valued `upload_url_path`, correct that option on the target site before uploading new files; changing the plugin alone does not repair previously generated attachment URLs.

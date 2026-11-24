@@ -17,6 +17,7 @@ class BatchConfigurationLoaderTest extends TestCase
         $path = $this->createConfigurationFile([
             'mappings' => [[
                 'source_url' => 'https://production.example.test/',
+                'source_rest_url' => 'https://production.example.test/json/',
                 'target' => 'https://staging.example.test/',
                 'target_siteurl' => 'https://staging.example.test/wp/',
                 'username_env' => 'MUNICIPIO_CLONE_TEST_USERNAME',
@@ -40,6 +41,7 @@ class BatchConfigurationLoaderTest extends TestCase
         $this->assertCount(1, $mappings);
         $this->assertSame([
             'source-url' => 'https://production.example.test',
+            'source-rest-url' => 'https://production.example.test/json',
             'target' => 'https://staging.example.test',
             'target-siteurl' => 'https://staging.example.test/wp',
             'username' => 'clone-user',

@@ -11,6 +11,8 @@ class RemoteExportClient
 {
     private const DOWNLOAD_CHUNK_SIZE = 64 * 1024 * 1024;
 
+    private const EXPORT_ROUTE = 'municipio-clone/v1/export';
+
     private bool $usesDefaultTransport;
 
     /**
@@ -26,11 +28,19 @@ class RemoteExportClient
         $this->transport ??= [$this, 'defaultTransport'];
     }
 
-    public function requestExport(string $sourceUrl, bool $force): array
+    /**
+     * Requests an export manifest from the source site.
+     *
+     * The source REST API root is discovered from the WordPress `Link: <...>; rel="https://api.w.org/"`
+     * header, since some sites move `/wp-json/` to a custom prefix (for example `/json/`).
+     * Pass $restUrl to skip discovery and use an explicit REST API root.
+     */
+    public function requestExport(string $sourceUrl, bool $force, ?string $restUrl = null): array
     {
+        $restRoot = $restUrl !== null && $restUrl !== '' ? $restUrl : $this->discoverRestRoot($sourceUrl);
         $response = $this->request(
             'POST',
-            rtrim($sourceUrl, '/') . '/wp-json/municipio-clone/v1/export',
+            $this->buildRestRouteUrl($restRoot, self::EXPORT_ROUTE),
             ['force' => $force],
         );
 
@@ -39,9 +49,66 @@ class RemoteExportClient
             throw new \RuntimeException('Failed to decode export manifest response.');
         }
 
-        $decoded['requested_source_origin'] = $this->origin($sourceUrl);
+        $decoded['requested_source_origin'] = $this->origin($restRoot);
 
         return $decoded;
+    }
+
+    /**
+     * Resolves the source REST API root, falling back to the default `/wp-json/` prefix.
+     */
+    public function discoverRestRoot(string $sourceUrl): string
+    {
+        $defaultRoot = rtrim($sourceUrl, '/') . '/wp-json/';
+
+        try {
+            [, $responseHeaders] = ($this->transport)('HEAD', rtrim($sourceUrl, '/') . '/', null, $this->username, $this->applicationPassword);
+        } catch (\Throwable) {
+            return $defaultRoot;
+        }
+
+        $discoveredRoot = $this->findRestApiLink(is_array($responseHeaders) ? $responseHeaders : []);
+        if ($discoveredRoot === null || $this->origin($discoveredRoot) !== $this->origin($sourceUrl)) {
+            return $defaultRoot;
+        }
+
+        return $discoveredRoot;
+    }
+
+    /**
+     * @param string[] $responseHeaders
+     */
+    private function findRestApiLink(array $responseHeaders): ?string
+    {
+        $restRoot = null;
+        foreach ($responseHeaders as $header) {
+            if (!str_starts_with(strtolower((string) $header), 'link:')) {
+                continue;
+            }
+
+            $matchCount = preg_match_all('/<([^>]+)>\s*;[^,]*\brel\s*=\s*"?https:\/\/api\.w\.org\/"?/i', (string) $header, $matches);
+            if ($matchCount > 0) {
+                $restRoot = html_entity_decode(end($matches[1]), ENT_QUOTES);
+            }
+        }
+
+        return $restRoot !== null && filter_var($restRoot, FILTER_VALIDATE_URL) !== false ? $restRoot : null;
+    }
+
+    private function buildRestRouteUrl(string $restRoot, string $route): string
+    {
+        $route = ltrim($route, '/');
+        $parts = parse_url($restRoot);
+        parse_str((string) ($parts['query'] ?? ''), $query);
+        if (!isset($query['rest_route'])) {
+            return rtrim($restRoot, '/') . '/' . $route;
+        }
+
+        // Plain-permalink sites expose the REST API as `?rest_route=/`.
+        $query['rest_route'] = rtrim((string) $query['rest_route'], '/') . '/' . $route;
+        $base = strstr($restRoot, '?', true);
+
+        return $base . '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
     }
 
     /**
